@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "773245302476",
+    "project_id": "resq-826c0",
+    "storage_bucket": "resq-826c0.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:773245302476:android:aa4db7b586d6bd74427469",
+        "android_client_info": {
+          "package_name": "com.example.resq_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDGNWDx4ykPj0_Du4B66f8m0jLep4fEkuA"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
