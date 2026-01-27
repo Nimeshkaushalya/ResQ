@@ -1,0 +1,36 @@
+name: resq_flutter
+description: ResQ Emergency Response Platform
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # State Management
+  provider: ^6.1.1
+
+  # UI & Styling
+  google_fonts: ^6.1.0
+  lucide_icons: ^0.257.0 # Using requested package
+  flutter_markdown: ^0.6.14
+
+  # AI & Services
+  google_generative_ai: ^0.4.0
+  
+  # Device Features
+  geolocator: ^11.0.0
+  image_picker: ^1.0.7
+  permission_handler: ^11.3.0
+  url_launcher: ^6.2.5
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true

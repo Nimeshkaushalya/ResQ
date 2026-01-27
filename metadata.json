@@ -1,0 +1,9 @@
+{
+  "name": "Copy of ResQ flutter",
+  "description": "An intelligent emergency response application providing real-time coordination, AI-powered first aid guidance, and incident reporting.",
+  "requestFramePermissions": [
+    "camera",
+    "microphone",
+    "geolocation"
+  ]
+}
