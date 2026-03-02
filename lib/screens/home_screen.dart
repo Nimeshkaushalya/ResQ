@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:resq_flutter/screens/report_screen.dart';
+import 'package:resq_flutter/services/location_service.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -20,6 +21,25 @@ class HomeScreen extends StatelessWidget {
                     fontWeight: FontWeight.bold)),
           ],
         ),
+        actions: [
+          IconButton(
+            icon: const Icon(LucideIcons.mapPin, color: Color(0xFF64748B)),
+            onPressed: () async {
+              print('--- Testing Location Service ---');
+              final position = await LocationService.getCurrentLocation();
+              if (position != null) {
+                print('Position: ${position.latitude}, ${position.longitude}');
+                final address = await LocationService.getAddressFromCoordinates(
+                    position.latitude, position.longitude);
+                print('Address: $address');
+              } else {
+                print('Failed to get location.');
+              }
+              print('--------------------------------');
+            },
+            tooltip: 'Test Location',
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16.0),

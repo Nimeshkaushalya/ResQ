@@ -53,5 +53,7 @@
     <string>ResQ needs camera access to capture evidence of the emergency.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>ResQ needs microphone access for voice reporting.</string> 
+    <key>NSPhotoLibraryUsageDescription</key>
+    <string>ResQ needs photo library access to upload evidence from gallery.</string> 
 </dict>
 </plist>
