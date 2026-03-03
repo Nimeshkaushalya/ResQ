@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/auth_service.dart';
+import 'package:resq_flutter/screens/my_reports_screen.dart' as resq_my_reports;
 
 class ProfileScreen extends StatelessWidget {
   const ProfileScreen({super.key});
@@ -66,7 +67,16 @@ class ProfileScreen extends StatelessWidget {
 
                 // Settings
                 _buildMenuItem(LucideIcons.settings, "Settings"),
-                _buildMenuItem(LucideIcons.history, "History"),
+                _buildMenuItem(LucideIcons.history, "History (My Reports)",
+                    onTap: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          const resq_my_reports.MyReportsScreen(),
+                    ),
+                  );
+                }),
                 _buildMenuItem(
                   LucideIcons.logOut,
                   "Logout",
