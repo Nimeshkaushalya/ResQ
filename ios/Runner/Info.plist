@@ -55,5 +55,7 @@
     <string>ResQ needs microphone access for voice reporting.</string> 
     <key>NSPhotoLibraryUsageDescription</key>
     <string>ResQ needs photo library access to upload evidence from gallery.</string> 
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>ResQ needs speech recognition access for voice searching the first aid guide.</string>
 </dict>
 </plist>

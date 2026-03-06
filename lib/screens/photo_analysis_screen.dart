@@ -5,6 +5,7 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'package:provider/provider.dart';
 import 'package:resq_flutter/services/gemini_service.dart';
 import 'package:resq_flutter/services/connectivity_service.dart';
+import 'package:resq_flutter/services/offline_ai_service.dart';
 
 class PhotoAnalysisScreen extends StatefulWidget {
   const PhotoAnalysisScreen({super.key});
@@ -15,9 +16,27 @@ class PhotoAnalysisScreen extends StatefulWidget {
 
 class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   final ConnectivityService _connectivityService = ConnectivityService();
+  final OfflineAIService _offlineAIService = OfflineAIService();
   File? _imageFile;
   bool _isAnalyzing = false;
   String? _analysisResult;
+  bool _isOnline = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _offlineAIService.init();
+    _checkInitialConnectivity();
+  }
+
+  Future<void> _checkInitialConnectivity() async {
+    bool hasInternet = await _connectivityService.checkInternetConnection();
+    if (mounted) {
+      setState(() {
+        _isOnline = hasInternet;
+      });
+    }
+  }
 
   Future<void> _pickImage(ImageSource source) async {
     final picker = ImagePicker();
@@ -33,25 +52,24 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   Future<void> _analyzeImage() async {
     if (_imageFile == null) return;
 
-    // Check internent connection first
-    bool hasInternet = await _connectivityService.checkInternetConnection();
-    if (!hasInternet) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-            content: Text(
-                'No internet connection. Please connect to analyze medically.')),
-      );
-      return;
-    }
-
     setState(() {
       _isAnalyzing = true;
     });
 
     try {
-      final gemini = Provider.of<GeminiService>(context, listen: false);
-      final result = await gemini.analyzeInjuryPhoto(_imageFile!);
+      bool hasInternet = await _connectivityService.checkInternetConnection();
+      setState(() {
+        _isOnline = hasInternet;
+      });
+
+      String result;
+      if (hasInternet) {
+        final gemini = Provider.of<GeminiService>(context, listen: false);
+        result = await gemini.analyzeInjuryPhoto(_imageFile!);
+      } else {
+        result = await _offlineAIService.analyzeImageOffline(_imageFile!);
+      }
+
       setState(() {
         _analysisResult = result;
       });
@@ -104,6 +122,27 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
                             style: TextStyle(color: Colors.grey)),
                       ],
                     ),
+            ),
+            const SizedBox(height: 16),
+
+            // Online/Offline Indicator
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  _isOnline ? LucideIcons.wifi : LucideIcons.wifiOff,
+                  color: _isOnline ? Colors.green : Colors.orange,
+                  size: 20,
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  _isOnline ? 'Online Mode (Gemini)' : 'Offline Mode (TF Lite)',
+                  style: TextStyle(
+                    color: _isOnline ? Colors.green : Colors.orange,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ],
             ),
             const SizedBox(height: 16),
 

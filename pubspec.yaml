@@ -20,6 +20,7 @@ dependencies:
 
   # AI & Services
   google_generative_ai: ^0.4.0
+  tflite_flutter: ^0.12.1
   
   # Device Features
   geolocator: ^11.0.0
@@ -36,6 +37,8 @@ dependencies:
   cloudinary_public: ^0.23.1
   video_player: ^2.8.1
   connectivity_plus: ^5.0.2
+  image: ^4.8.0
+  speech_to_text: ^7.3.0
 
 dev_dependencies:
   flutter_test:
@@ -44,3 +47,6 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/ml/
+    - assets/images/first_aid/

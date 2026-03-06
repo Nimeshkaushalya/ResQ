@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:resq_flutter/screens/report_screen.dart';
 import 'package:resq_flutter/services/location_service.dart';
+import 'package:resq_flutter/screens/first_aid_guide_screen.dart';
 
 class HomeScreen extends StatelessWidget {
   const HomeScreen({super.key});
@@ -138,6 +139,72 @@ class HomeScreen extends StatelessWidget {
                     context, 'Crime', LucideIcons.shieldAlert, Colors.red),
               ],
             ),
+            const SizedBox(height: 32),
+
+            // First Aid Guide Button
+            _buildFirstAidBanner(context),
+            const SizedBox(height: 16),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFirstAidBanner(BuildContext context) {
+    return GestureDetector(
+      onTap: () {
+        Navigator.of(context).push(
+          MaterialPageRoute(builder: (_) => const FirstAidGuideScreen()),
+        );
+      },
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(20),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: Colors.red.shade100, width: 2),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.red.withOpacity(0.05),
+              blurRadius: 10,
+              offset: const Offset(0, 4),
+            ),
+          ],
+        ),
+        child: Row(
+          children: [
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: const BoxDecoration(
+                color: Color(0xFFDC2626), // red-600
+                shape: BoxShape.circle,
+              ),
+              child: const Icon(LucideIcons.bookOpen,
+                  color: Colors.white, size: 28),
+            ),
+            const SizedBox(width: 16),
+            const Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    "First Aid Guide",
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFFDC2626),
+                    ),
+                  ),
+                  SizedBox(height: 4),
+                  Text(
+                    "Step-by-step offline emergency guides",
+                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                  ),
+                ],
+              ),
+            ),
+            Icon(LucideIcons.chevronRight, color: Colors.grey)
           ],
         ),
       ),
