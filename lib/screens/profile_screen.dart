@@ -25,10 +25,13 @@ class ProfileScreen extends StatelessWidget {
           }
 
           String username = "User";
+          String uniqueId = "RESQ-Loading...";
+
           // Check if data exists
           if (snapshot.hasData && snapshot.data!.exists) {
             final data = snapshot.data!.data() as Map<String, dynamic>;
             username = data['username'] ?? 'User';
+            uniqueId = data['uniqueId'] ?? 'No ID found';
           }
 
           return SingleChildScrollView(
@@ -48,6 +51,24 @@ class ProfileScreen extends StatelessWidget {
                   style: const TextStyle(
                       fontSize: 20, fontWeight: FontWeight.bold),
                 ),
+                const SizedBox(height: 4),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: Colors.blue.shade50,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Text(
+                    uniqueId,
+                    style: TextStyle(
+                      color: Colors.blue.shade700,
+                      fontWeight: FontWeight.bold,
+                      letterSpacing: 1,
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 8),
                 const Text(
                   "Blood Type: O+",
                   style: TextStyle(color: Color(0xFF64748B)),

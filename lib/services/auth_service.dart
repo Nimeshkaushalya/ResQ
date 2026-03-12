@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'dart:math';
 
 class AuthService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -11,6 +12,32 @@ class AuthService {
   // Get current user
   User? get currentUser => _auth.currentUser;
 
+  // Generate Unique ID
+  Future<String> _generateUniqueId() async {
+    final random = Random();
+    String newId = '';
+    bool isUnique = false;
+
+    while (!isUnique) {
+      // Generate 8 random digits
+      int randomNumber = random.nextInt(99999999);
+      newId = 'RESQ-${randomNumber.toString().padLeft(8, '0')}';
+
+      // Check if it exists in Firestore
+      final query = await _firestore
+          .collection('users')
+          .where('uniqueId', isEqualTo: newId)
+          .limit(1)
+          .get();
+
+      if (query.docs.isEmpty) {
+        isUnique = true;
+      }
+    }
+
+    return newId;
+  }
+
   // Sign Up
   Future<String?> signUp({
     required String email,
@@ -18,6 +45,8 @@ class AuthService {
     required String role, // 'user' or 'emergency_responder'
     required String username,
     required String phoneNumber,
+    String? responderType, // NEW
+    Map<String, String>? documents, // NEW
   }) async {
     try {
       UserCredential result = await _auth.createUserWithEmailAndPassword(
@@ -28,14 +57,31 @@ class AuthService {
 
       // Save additional user info to Firestore
       if (user != null) {
-        await _firestore.collection('users').doc(user.uid).set({
+        String uniqueId = await _generateUniqueId();
+
+        Map<String, dynamic> userData = {
           'uid': user.uid,
+          'uniqueId': uniqueId,
           'email': email,
           'role': role,
           'username': username,
           'phoneNumber': phoneNumber,
           'createdAt': FieldValue.serverTimestamp(),
-        });
+        };
+
+        if (role == 'emergency_responder') {
+          if (responderType != null) {
+            userData['responderType'] = responderType;
+          }
+        }
+
+        if (documents != null) {
+          userData['documents'] = documents;
+        }
+        userData['verificationStatus'] = 'pending';
+        userData['verificationNote'] = '';
+
+        await _firestore.collection('users').doc(user.uid).set(userData);
       }
       return null; // No error
     } on FirebaseAuthException catch (e) {
