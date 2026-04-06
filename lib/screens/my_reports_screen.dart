@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resq_flutter/services/emergency_service.dart';
+import 'package:resq_flutter/services/chat_service.dart';
+import 'package:resq_flutter/screens/chat/chat_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
 class MyReportsScreen extends StatefulWidget {
@@ -105,14 +107,18 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
 
                 // Type Icon
                 IconData typeIcon = LucideIcons.alertTriangle;
-                if (data['emergencyType'] == 'Medical')
+                if (data['emergencyType'] == 'Medical') {
                   typeIcon = LucideIcons.activity;
-                if (data['emergencyType'] == 'Fire')
+                }
+                if (data['emergencyType'] == 'Fire') {
                   typeIcon = LucideIcons.flame;
-                if (data['emergencyType'] == 'Accident')
+                }
+                if (data['emergencyType'] == 'Accident') {
                   typeIcon = LucideIcons.car;
-                if (data['emergencyType'] == 'Crime')
+                }
+                if (data['emergencyType'] == 'Crime') {
                   typeIcon = LucideIcons.shieldAlert;
+                }
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),
@@ -220,7 +226,36 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                                       fontWeight: FontWeight.w500)),
                             ],
                           )
-                        ]
+                        ],
+                        if (status != 'pending') ...[
+                          const SizedBox(height: 16),
+                          SizedBox(
+                            width: double.infinity,
+                            child: ElevatedButton.icon(
+                              onPressed: () async {
+                                final chat = await ChatService().getChatByEmergencyId(doc.id);
+                                if (chat != null && context.mounted) {
+                                  Navigator.push(
+                                    context,
+                                    MaterialPageRoute(builder: (_) => ChatScreen(chat: chat)),
+                                  );
+                                } else if (context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Chat not generated yet.')),
+                                  );
+                                }
+                              },
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.blue.shade50,
+                                foregroundColor: Colors.blue.shade700,
+                                elevation: 0,
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                              ),
+                              icon: const Icon(LucideIcons.messageCircle, size: 18),
+                              label: const Text('Chat with Responder', style: TextStyle(fontWeight: FontWeight.bold)),
+                            ),
+                          ),
+                        ],
                       ],
                     ),
                   ),

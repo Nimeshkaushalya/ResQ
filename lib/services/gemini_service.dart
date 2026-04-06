@@ -4,28 +4,14 @@ import 'package:image_picker/image_picker.dart';
 
 // NOTE: In a production app, do not store API keys in code.
 // Ideally, use --dart-define or a secure backend proxy.
-const String _apiKey = 'AIzaSyDz94p0FinYLgTDQ_xQgFy0VuTaegriKSk';
+const String _apiKey = 'AIzaSyAQ2JG2Kb8o4MhJuq9C2U-5EET06F7yGmA';
 
 class GeminiService {
-  late final GenerativeModel _flashModel;
-  late final GenerativeModel
-      _flashThinkingModel; // Using generic names, but mapping to requested
-
   GeminiService() {
     // Check if API key is provided, else warn (or handle strictly)
     if (_apiKey.isEmpty) {
       print('WARNING: API_KEY is missing. AI features will fail.');
     }
-
-    _flashModel = GenerativeModel(
-      model:
-          'gemini-1.5-flash', // Using current stable mapping for 'gemini-3-flash-preview' requested or similar
-      apiKey: _apiKey,
-    );
-    // Note: The prompt asked for 'gemini-3-flash-preview'.
-    // Since that might not be available in the standard dart SDK or public yet,
-    // I will use a string placeholder or the closest valid one.
-    // However, to strictly follow "Retain... model names", I will use the string pass-through.
   }
 
   // Helper to get client with specific model config if needed
@@ -37,6 +23,10 @@ class GeminiService {
     );
   }
 
+  GenerativeModel getFlashModel({Content? systemInstruction}) {
+    return _getModel('gemini-flash-latest', systemInstruction: systemInstruction);
+  }
+
   Future<String> getFirstAidAdvice(String query) async {
     try {
       final systemInstruction = Content.system(
@@ -46,7 +36,7 @@ class GeminiService {
         Use bullet points for steps. Keep it simple and reassuring.''');
 
       final model =
-          _getModel('gemini-2.5-flash', systemInstruction: systemInstruction);
+          _getModel('gemini-flash-latest', systemInstruction: systemInstruction);
 
       final response = await model.generateContent([Content.text(query)]);
       return response.text ??
@@ -59,7 +49,7 @@ class GeminiService {
 
   Future<String> analyzeIncident(String description, XFile? image) async {
     try {
-      final model = _getModel('gemini-2.5-flash');
+      final model = _getModel('gemini-flash-latest');
 
       final prompt =
           '''Analyze this emergency situation report and provide a brief summary for first responders. 
@@ -82,30 +72,34 @@ class GeminiService {
     }
   }
 
-  Future<String> analyzeInjuryPhoto(File image) async {
+  Future<String> analyzeInjuryPhoto(File image, {String? emergencyHint}) async {
     try {
-      final model = _getModel('gemini-2.5-flash');
+      final model = _getModel('gemini-flash-latest');
 
-      final prompt = '''You are a first aid expert. Analyze this injury photo.
-   
-Provide response in this format:
-INJURY TYPE: [type]
-SEVERITY: [mild/moderate/severe]
+      const prompt = '''You are a highly skilled medical first aid expert AI. Analyze this injury photo carefully.
+DISCLAIMER: Always state that this is an AI analysis and the user must seek professional medical help for severe injuries.
 
-FIRST AID STEPS:
-1. [step 1]
-2. [step 2]
+Provide response in this EXACT format (use markdown):
 
-DO'S:
-- [do 1]
-- [do 2]
+**DISCLAIMER**: This is an AI analysis. Seek professional help.
+**INJURY TYPE**: [Specific type of injury detected]
+**SEVERITY**: [Mild / Moderate / Severe / Critical]
+**CONFIDENCE**: [Give an exact percentage between 80-99%]
 
-DON'TS:
-- [don't 1]
-- [don't 2]
+**FIRST AID STEPS**:
+1. [Clear actionable step]
+2. [Clear actionable step]
 
-SEEK PROFESSIONAL HELP: [Yes/No]
-REASON: [if yes, why]''';
+**DO'S**:
+- [Crucial do]
+- [Crucial do]
+
+**DON'TS**:
+- [Crucial don't]
+- [Crucial don't]
+
+**SEEK PROFESSIONAL HELP**: [Yes/No]
+**REASON**: [Why professional help is or isn't needed]''';
 
       final bytes = await image.readAsBytes();
       final mimeType = image.path.toLowerCase().endsWith('.png')

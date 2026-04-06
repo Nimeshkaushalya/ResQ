@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:resq_flutter/services/chat_service.dart';
 
 class RequestDetailScreen extends StatefulWidget {
   final String requestId;
@@ -37,6 +38,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         'responderId': user.uid,
         'acceptedAt': FieldValue.serverTimestamp(),
       });
+
+      // Fetch responder details for the chat
+      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final responderName = userDoc.data()?['name'] ?? 'Responder';
+      final responderType = userDoc.data()?['responderCategory'] ?? 'Emergency Service';
+      
+      final userId = widget.requestData['userId'] ?? 'unknown_user';
+      final userName = widget.requestData['userName'] ?? 'Citizen';
+
+      // Auto-create Chat
+      await ChatService().createChat(
+         widget.requestId,
+         userId,
+         user.uid,
+         userName,
+         responderName,
+         responderType,
+      );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

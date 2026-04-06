@@ -1,0 +1,6 @@
+Analyzing photo_analysis_screen.dart...                         
+
+   info - Don't use 'BuildContext's across async gaps - lib\screens\photo_analysis_screen.dart:93:51 - use_build_context_synchronously
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\photo_analysis_screen.dart:215:57 - deprecated_member_use
+   info - 'withOpacity' is deprecated and shouldn't be used. Use .withValues() to avoid precision loss - lib\screens\photo_analysis_screen.dart:379:75 - deprecated_member_use
+

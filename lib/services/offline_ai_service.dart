@@ -47,7 +47,7 @@ class OfflineAIService {
     }
   }
 
-  Future<String> analyzeImageOffline(File imageFile) async {
+  Future<String> analyzeImageOffline(File imageFile, {String? emergencyHint}) async {
     if (_interpreter == null || _labels == null) {
       return "Offline model not loaded. Please try again later.";
     }

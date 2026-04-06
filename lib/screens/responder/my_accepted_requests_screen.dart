@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:intl/intl.dart';
 import 'request_detail_screen.dart';
+import 'package:resq_flutter/screens/chat/chat_screen.dart';
+import 'package:resq_flutter/services/chat_service.dart';
 
 class MyAcceptedRequestsScreen extends StatelessWidget {
   const MyAcceptedRequestsScreen({super.key});
@@ -215,8 +217,26 @@ class MyAcceptedRequestsScreen extends StatelessWidget {
                             },
                             child: const Text('View Details'),
                           ),
+                          OutlinedButton.icon(
+                            onPressed: () async {
+                              final chat = await ChatService().getChatByEmergencyId(id);
+                              if (chat != null && context.mounted) {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(builder: (_) => ChatScreen(chat: chat)),
+                                );
+                              } else if (context.mounted) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(content: Text('Chat not found for this emergency.')),
+                                );
+                              }
+                            },
+                            icon: const Icon(LucideIcons.messageSquare, size: 16),
+                            label: const Text('Chat'),
+                          ),
                         ],
                       ),
+
                     ],
                   ),
                 ),
