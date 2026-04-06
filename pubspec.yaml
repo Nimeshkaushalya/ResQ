@@ -41,6 +41,8 @@ dependencies:
   speech_to_text: ^7.3.0
   uuid: ^4.3.3
   share_plus: ^10.1.4
+  google_sign_in: ^6.2.1
+  shared_preferences: ^2.2.2
 
   intl: any
 dev_dependencies:

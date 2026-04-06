@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'dart:math';
 
 class AuthService {
@@ -129,6 +130,44 @@ class AuthService {
       return e.toString();
     }
   }
+
+  // Google Sign In
+  Future<String?> signInWithGoogle() async {
+    try {
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      if (googleUser == null) return 'Google sign in cancelled.';
+
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      final AuthCredential credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      UserCredential result = await _auth.signInWithCredential(credential);
+      User? user = result.user;
+
+      if (user != null) {
+        final doc = await _firestore.collection('users').doc(user.uid).get();
+        if (!doc.exists) {
+          String uniqueId = await _generateUniqueId();
+          await _firestore.collection('users').doc(user.uid).set({
+            'uid': user.uid,
+            'uniqueId': uniqueId,
+            'email': user.email,
+            'role': 'user',
+            'username': user.displayName ?? 'User',
+            'phoneNumber': user.phoneNumber ?? '',
+            'createdAt': FieldValue.serverTimestamp(),
+            'verificationStatus': 'approved',
+          });
+        }
+      }
+      return null;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
 
   // Sign Out
   Future<void> signOut() async {
