@@ -21,7 +21,7 @@ class EmergencyRequestsScreen extends StatelessWidget {
         stream: FirebaseFirestore.instance
             .collection('emergencies')
             .where('status', isEqualTo: 'pending')
-            .orderBy('timestamp', descending: true)
+            .orderBy('createdAt', descending: true)
             .snapshots(),
         builder: (context, snapshot) {
           if (snapshot.hasError) {
@@ -72,21 +72,17 @@ class EmergencyRequestsScreen extends StatelessWidget {
                 final data = docs[index].data() as Map<String, dynamic>;
                 final id = docs[index].id;
 
-                final String type = data['type'] ?? 'Unknown Emergency';
+                final String type = data['emergencyType'] ?? 'Unknown Emergency';
                 final String description =
                     data['description'] ?? 'No detail provided';
-                final Timestamp? t = data['timestamp'];
+                final Timestamp? t = data['createdAt'];
 
                 String timeString = 'Just now';
                 if (t != null) {
                   timeString = DateFormat('h:mm a, MMM d').format(t.toDate());
                 }
 
-                Map<String, dynamic>? location = data['location'];
-                String locationText = 'Location attached';
-                if (location == null) {
-                  locationText = 'No location provided';
-                }
+                String locationText = data['address'] ?? 'Location attached';
 
                 return Card(
                   margin: const EdgeInsets.only(bottom: 16),

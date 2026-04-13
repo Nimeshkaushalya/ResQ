@@ -11,7 +11,8 @@ import 'package:video_player/video_player.dart';
 
 class ReportScreen extends StatefulWidget {
   final String initialType;
-  const ReportScreen({super.key, required this.initialType});
+  final String? preSelectedResponderId; // NEW
+  const ReportScreen({super.key, required this.initialType, this.preSelectedResponderId});
 
   @override
   State<ReportScreen> createState() => _ReportScreenState();
@@ -152,8 +153,9 @@ class _ReportScreenState extends State<ReportScreen> {
         latitude: _location!.latitude,
         longitude: _location!.longitude,
         address:
-            "Lat: ${_location!.latitude.toStringAsFixed(4)}, Lng: ${_location!.longitude.toStringAsFixed(4)}", // Simplified for now, can use geocoding later
+            "Lat: ${_location!.latitude.toStringAsFixed(4)}, Lng: ${_location!.longitude.toStringAsFixed(4)}",
         mediaUrls: _uploadedMediaUrl != null ? [_uploadedMediaUrl!] : [],
+        preferredResponderId: widget.preSelectedResponderId, // PASS NEW PARAM
       );
 
       if (response['success'] == true) {

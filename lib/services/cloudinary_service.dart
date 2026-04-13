@@ -3,7 +3,7 @@ import 'package:cloudinary_public/cloudinary_public.dart';
 
 class CloudinaryService {
   final cloudinary =
-      CloudinaryPublic('dk8s78zih', '669345519793145', cache: false);
+      CloudinaryPublic('dk8s78zih', 'resq_preset', cache: false);
 
   Future<String?> uploadImage(File image) async {
     try {

@@ -179,7 +179,7 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
                         height: 16,
                         child: CircularProgressIndicator(strokeWidth: 2)),
                     SizedBox(width: 8),
-                    Text("ResQ is typing...",
+                    Text("ResQ AI is thinking...",
                         style: TextStyle(color: Colors.grey, fontSize: 12)),
                   ],
                 ),

@@ -3,8 +3,9 @@ import 'package:lucide_icons/lucide_icons.dart';
 import 'home_screen.dart';
 import 'report_screen.dart';
 import 'first_aid_screen.dart';
-import 'nearby_map_screen.dart';
+import 'live_responders_map_screen.dart';
 import 'profile_screen.dart';
+import 'my_reports_screen.dart'; // NEW ACTIVE CHATS SCREEN
 
 class MainScaffold extends StatefulWidget {
   const MainScaffold({super.key});
@@ -18,8 +19,8 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    NearbyMapScreen(),
-    ReportScreen(initialType: 'General'),
+    LiveRespondersMapScreen(),
+    MyReportsScreen(), // REPLACED: Easy access to chats
     FirstAidScreen(),
     ProfileScreen(),
   ];
@@ -51,8 +52,8 @@ class _MainScaffoldState extends State<MainScaffold> {
             label: 'Nearby',
           ),
           BottomNavigationBarItem(
-            icon: Icon(LucideIcons.alertCircle),
-            label: 'Report',
+            icon: Icon(LucideIcons.messageCircle),
+            label: 'Emergencies',
           ),
           BottomNavigationBarItem(
             icon: Icon(LucideIcons.heartPulse),

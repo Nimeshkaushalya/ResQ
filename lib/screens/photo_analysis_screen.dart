@@ -160,7 +160,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   void _shareChat() {
     if (_chatService == null) return;
     final history = _chatService!.chatHistory.map((m) => 
-      "${m.isUser ? 'User' : 'AI'}: ${m.text}"
+      "${m.isUser ? 'User' : 'ResQ AI'}: ${m.text}"
     ).join("\n\n");
     Share.share(history, subject: 'ResQ First Aid Chat');
   }
@@ -262,7 +262,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
         ),
         const SizedBox(width: 8),
         Text(
-          _isOnline ? 'Online via Gemini' : 'Offline via TF Lite',
+          _isOnline ? 'ResQ AI Online' : 'Offline Analysis Mode',
           style: TextStyle(color: _isOnline ? Colors.green : Colors.orange, fontWeight: FontWeight.w600, fontSize: 13),
         ),
       ],
@@ -401,7 +401,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
             decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16)),
-            child: const Text("AI is thinking...", style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
+            child: const Text("ResQ AI is thinking...", style: TextStyle(color: Colors.grey, fontSize: 12, fontStyle: FontStyle.italic)),
           ),
         ],
       ),

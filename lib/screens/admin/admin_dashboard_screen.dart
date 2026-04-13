@@ -13,7 +13,7 @@ class AdminDashboardScreen extends StatelessWidget {
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
-              // The StreamBuilder automatically updates, but a refresh button gives a sense of control
+              // The StreamBuilder automatically updates
             },
           ),
         ],
@@ -55,7 +55,6 @@ class AdminDashboardScreen extends StatelessWidget {
 
           return RefreshIndicator(
             onRefresh: () async {
-               // For StreamBuilder this is largely cosmetic as it auto-updates
             },
             child: SingleChildScrollView(
               physics: const AlwaysScrollableScrollPhysics(),
@@ -87,7 +86,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     physics: const NeverScrollableScrollPhysics(),
                     mainAxisSpacing: 16,
                     crossAxisSpacing: 16,
-                    childAspectRatio: 1.1,
+                    childAspectRatio: 0.9, // Taller cards to prevent overflow
                     children: [
                       _buildStatCard(
                         'Total Users',
@@ -135,8 +134,7 @@ class AdminDashboardScreen extends StatelessWidget {
                     subtitle: Text('$pendingApprovals accounts require your attention'),
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
-                      // We will navigate to the Pending tab using the inherited AdminMainScaffold state eventually, 
-                      // but for now this just exists for UI.
+                   
                     },
                   ),
                 ],
@@ -157,13 +155,16 @@ class AdminDashboardScreen extends StatelessWidget {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 40, color: color),
+            Icon(icon, size: 36, color: color),
             const SizedBox(height: 12),
-            Text(
-              count,
-              style: const TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              child: Text(
+                count,
+                style: const TextStyle(
+                  fontSize: 28,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 4),
@@ -171,7 +172,7 @@ class AdminDashboardScreen extends StatelessWidget {
               title,
               textAlign: TextAlign.center,
               style: TextStyle(
-                fontSize: 14,
+                fontSize: 13,
                 color: Colors.grey.shade700,
                 fontWeight: FontWeight.w500,
               ),

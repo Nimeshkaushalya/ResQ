@@ -105,11 +105,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text('ResQ Login')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
+      body: Center(
+        child: SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Form(
+              key: _formKey,
+              child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               TextFormField(
@@ -189,10 +191,11 @@ class _LoginScreenState extends State<LoginScreen> {
                     padding: const EdgeInsets.all(16),
                     side: BorderSide(color: Colors.grey.shade300),
                   ),
-                  icon: Image.network(
+                  /* icon: Image.network(
                     'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/1024px-Google_%22G%22_logo.svg.png',
                     height: 20,
-                  ),
+                  ), */
+                  icon: const Icon(Icons.login),
                   label: const Text('Sign in with Google', style: TextStyle(color: Colors.black)),
                   onPressed: _loginWithGoogle,
                 ),
@@ -211,7 +214,7 @@ class _LoginScreenState extends State<LoginScreen> {
             ],
           ),
         ),
-      ),
+      ))),
     );
   }
 }

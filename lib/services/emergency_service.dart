@@ -21,6 +21,7 @@ class EmergencyService {
     required double longitude,
     required String address,
     required List<String> mediaUrls,
+    String? preferredResponderId, // NEW
   }) async {
     try {
       final User? currentUser = _auth.currentUser;
@@ -54,6 +55,7 @@ class EmergencyService {
         'longitude': longitude,
         'address': address,
         'mediaUrls': mediaUrls,
+        'preferredResponderId': preferredResponderId, // NEW
         'status': 'pending',
         'createdAt': FieldValue.serverTimestamp(),
       });

@@ -96,7 +96,7 @@ DON'TS:
 - Do not move the person if a spinal injury is suspected.
 
 SEEK PROFESSIONAL HELP: Yes
-REASON: This is an offline generic model analysis, accurate medical assessment requires professional help or Gemini AI online.''';
+REASON: This is an offline generic model analysis, accurate medical assessment requires professional help or ResQ AI online.''';
     } catch (e) {
       print("Offline Analysis Error: $e");
       return "Could not analyze incident offline.";

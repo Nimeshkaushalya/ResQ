@@ -19,10 +19,13 @@ class AuthWrapper extends StatelessWidget {
     return StreamBuilder<User?>(
       stream: _authService.authStateChanges,
       builder: (context, snapshot) {
+        print('DEBUG: Auth State Connection: ${snapshot.connectionState}');
         if (snapshot.connectionState == ConnectionState.active) {
           User? user = snapshot.data;
+          print('DEBUG: Current User UID: ${user?.uid}');
 
           if (user == null) {
+            print('DEBUG: No user found, showing LoginScreen');
             return const LoginScreen();
           }
 

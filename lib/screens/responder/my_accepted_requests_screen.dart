@@ -101,9 +101,9 @@ class MyAcceptedRequestsScreen extends StatelessWidget {
               final data = docs[index].data() as Map<String, dynamic>;
               final id = docs[index].id;
 
-              final String type = data['type'] ?? 'Unknown Emergency';
+              final String type = data['emergencyType'] ?? 'Unknown Emergency';
               final String status = data['status'] ?? 'accepted';
-              final Timestamp? t = data['timestamp'];
+              final Timestamp? t = data['createdAt'];
 
               String timeString = '';
               if (t != null) {

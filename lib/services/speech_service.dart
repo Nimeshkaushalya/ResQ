@@ -6,11 +6,7 @@ class SpeechService {
 
   Future<bool> initialize() async {
     if (!_isInitialized) {
-      _isInitialized = await _speech.initialize(
-        onStatus: (status) => print('Speech status: $status'),
-        onError: (errorNotification) =>
-            print('Speech error: $errorNotification'),
-      );
+      _isInitialized = await _speech.initialize();
     }
     return _isInitialized;
   }
@@ -35,9 +31,11 @@ class SpeechService {
         },
         listenFor: const Duration(seconds: 10),
         pauseFor: const Duration(seconds: 3),
-        partialResults: true,
-        cancelOnError: true,
-        listenMode: stt.ListenMode.search,
+        listenOptions: stt.SpeechListenOptions(
+          partialResults: true,
+          cancelOnError: true,
+          listenMode: stt.ListenMode.search,
+        ),
       );
     }
   }

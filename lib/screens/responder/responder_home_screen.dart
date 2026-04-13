@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'emergency_requests_screen.dart';
+import 'my_accepted_requests_screen.dart';
+import 'responder_profile_screen.dart';
 
 class ResponderHomeScreen extends StatelessWidget {
   const ResponderHomeScreen({super.key});
@@ -102,23 +105,43 @@ class ResponderHomeScreen extends StatelessWidget {
                 color: Color(0xFF0F172A),
               ),
             ),
-            const SizedBox(height: 16),
             _buildActionCard(
               title: 'View Emergency Queue',
               subtitle: 'See all pending requests nearby',
               icon: LucideIcons.listTodo,
               color: const Color(0xFFDC2626),
               onTap: () {
-                // We'll navigate or switch tab here
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen()),
+                );
               },
             ),
             const SizedBox(height: 12),
             _buildActionCard(
-              title: 'Update Status',
-              subtitle: 'Mark yourself available or busy',
+              title: 'My Active Responses',
+              subtitle: 'Current emergency handles',
+              icon: LucideIcons.activity,
+              color: const Color(0xFF2563EB),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const MyAcceptedRequestsScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 12),
+            _buildActionCard(
+              title: 'Profile Settings',
+              subtitle: 'Update your status and details',
               icon: LucideIcons.userCheck,
               color: const Color(0xFF059669),
-              onTap: () {},
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(builder: (context) => const ResponderProfileScreen()),
+                );
+              },
             ),
           ],
         ),

@@ -4,9 +4,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:resq_flutter/screens/auth_wrapper.dart';
 import 'package:resq_flutter/services/gemini_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await dotenv.load(fileName: ".env");
   await Firebase.initializeApp();
   runApp(const ResQApp());
 }
@@ -32,9 +34,7 @@ class ResQApp extends StatelessWidget {
             surface: Colors.white,
           ),
           scaffoldBackgroundColor: const Color(0xFFF8FAFC),
-          textTheme: GoogleFonts.interTextTheme(
-            Theme.of(context).textTheme,
-          ),
+          textTheme: GoogleFonts.interTextTheme(),
           appBarTheme: const AppBarTheme(
             backgroundColor: Colors.white,
             foregroundColor: Color(0xFF0F172A), // Slate-900

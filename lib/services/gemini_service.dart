@@ -1,16 +1,15 @@
 import 'dart:io';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:image_picker/image_picker.dart';
-
-// NOTE: In a production app, do not store API keys in code.
-// Ideally, use --dart-define or a secure backend proxy.
-const String _apiKey = 'AIzaSyAQ2JG2Kb8o4MhJuq9C2U-5EET06F7yGmA';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class GeminiService {
+  final String _apiKey = dotenv.env['GEMINI_API_KEY'] ?? '';
+
   GeminiService() {
     // Check if API key is provided, else warn (or handle strictly)
     if (_apiKey.isEmpty) {
-      print('WARNING: API_KEY is missing. AI features will fail.');
+      print('WARNING: GEMINI_API_KEY is missing from .env file. AI features will fail.');
     }
   }
 
