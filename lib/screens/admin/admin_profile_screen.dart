@@ -96,16 +96,16 @@ class AdminProfileScreen extends StatelessWidget {
                 ),
                 const SizedBox(height: 48),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.security, color: Colors.blueGrey),
-                  title: const Text('Access Level'),
-                  trailing: const Text('Full System Access'),
+                const ListTile(
+                  leading: Icon(Icons.security, color: Colors.blueGrey),
+                  title: Text('Access Level'),
+                  trailing: Text('Full System Access'),
                 ),
                 const Divider(),
-                ListTile(
-                  leading: const Icon(Icons.description, color: Colors.blueGrey),
-                  title: const Text('Responsibility'),
-                  trailing: const Text('Global Verification'),
+                const ListTile(
+                  leading: Icon(Icons.description, color: Colors.blueGrey),
+                  title: Text('Responsibility'),
+                  trailing: Text('Global Verification'),
                 ),
                 const Divider(),
                 const Spacer(),

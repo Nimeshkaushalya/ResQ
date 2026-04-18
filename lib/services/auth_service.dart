@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
+import 'package:resq_flutter/services/notification_service.dart';
 import 'dart:math';
 
 class AuthService {
@@ -83,6 +84,9 @@ class AuthService {
         userData['verificationNote'] = '';
 
         await _firestore.collection('users').doc(user.uid).set(userData);
+        
+        // Update FCM Token
+        await NotificationService().updateToken();
       }
       return null; // No error
     } on FirebaseAuthException catch (e) {
@@ -116,6 +120,10 @@ class AuthService {
         email: email,
         password: password,
       );
+      
+      // Update FCM Token
+      await NotificationService().updateToken();
+      
       return null; // No error
     } on FirebaseAuthException catch (e) {
       if (e.code == 'user-not-found') {
@@ -132,10 +140,13 @@ class AuthService {
   }
 
   // Google Sign In
-  Future<String?> signInWithGoogle() async {
+  Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
-      if (googleUser == null) return 'Google sign in cancelled.';
+      // Use the Web Client ID from google-services.json (client_type: 3)
+      final GoogleSignInAccount? googleUser = await GoogleSignIn(
+        serverClientId: '773245302476-93j4rkud9gq2lfi19qabgnso1vsn2kat.apps.googleusercontent.com',
+      ).signIn();
+      if (googleUser == null) return {'error': 'Google sign in cancelled.', 'isNewUser': false};
 
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
@@ -149,19 +160,39 @@ class AuthService {
       if (user != null) {
         final doc = await _firestore.collection('users').doc(user.uid).get();
         if (!doc.exists) {
-          String uniqueId = await _generateUniqueId();
-          await _firestore.collection('users').doc(user.uid).set({
-            'uid': user.uid,
-            'uniqueId': uniqueId,
-            'email': user.email,
-            'role': 'user',
-            'username': user.displayName ?? 'User',
-            'phoneNumber': user.phoneNumber ?? '',
-            'createdAt': FieldValue.serverTimestamp(),
-            'verificationStatus': 'approved',
-          });
+          return {'error': null, 'isNewUser': true, 'user': user};
         }
+        
+        // Update FCM Token for existing user
+        await NotificationService().updateToken();
+        return {'error': null, 'isNewUser': false, 'user': user};
       }
+      return {'error': 'Unknown error occurred.', 'isNewUser': false};
+    } catch (e) {
+      return {'error': e.toString(), 'isNewUser': false};
+    }
+  }
+
+  // Create Google User Profile
+  Future<String?> createGoogleUserProfile({
+    required User user,
+    required String role,
+  }) async {
+    try {
+      String uniqueId = await _generateUniqueId();
+      await _firestore.collection('users').doc(user.uid).set({
+        'uid': user.uid,
+        'uniqueId': uniqueId,
+        'email': user.email,
+        'role': role,
+        'username': user.displayName ?? 'User',
+        'phoneNumber': user.phoneNumber ?? '',
+        'createdAt': FieldValue.serverTimestamp(),
+        'verificationStatus': 'pending',
+      });
+      
+      // Update FCM Token
+      await NotificationService().updateToken();
       return null;
     } catch (e) {
       return e.toString();
@@ -185,5 +216,21 @@ class AuthService {
       }
     }
     return null;
+  }
+
+  // Update User Profile
+  Future<String?> updateUserProfile({
+    required Map<String, dynamic> data,
+  }) async {
+    try {
+      User? user = _auth.currentUser;
+      if (user != null) {
+        await _firestore.collection('users').doc(user.uid).update(data);
+        return null;
+      }
+      return 'User not logged in';
+    } catch (e) {
+      return e.toString();
+    }
   }
 }

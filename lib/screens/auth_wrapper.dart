@@ -51,11 +51,9 @@ class AuthWrapper extends StatelessWidget {
               }
 
               if (!docSnapshot.hasData || !docSnapshot.data!.exists) {
-                // The document hasn't been created yet (during sign up race condition)
-                print('AuthWrapper doc not found yet...');
-                return const Scaffold(
-                  body: Center(child: CircularProgressIndicator()),
-                );
+                // The document hasn't been created yet (common during Google Sign-in for new users)
+                print('AuthWrapper doc not found yet, staying on LoginScreen to finalize profile...');
+                return const LoginScreen();
               }
 
               final data = docSnapshot.data!.data() as Map<String, dynamic>?;

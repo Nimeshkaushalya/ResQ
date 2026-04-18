@@ -7,14 +7,13 @@ import '../models/responder_with_distance.dart';
 class LocationService {
   /// Check permissions and get current location
   static Future<Position?> getCurrentLocation() async {
+    print('DEBUG: Requesting current location...');
     bool serviceEnabled;
     LocationPermission permission;
 
-    // Test if location services are enabled.
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      // Location services are not enabled
-      print('Location services are disabled.');
+      print('DEBUG: Location services are disabled.');
       return null;
     }
 
@@ -22,21 +21,28 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
+        print('DEBUG: Location permission denied.');
         return null;
       }
     }
     
     if (permission == LocationPermission.deniedForever) {
+      print('DEBUG: Location permission denied forever.');
       return null;
     }
 
     try {
-      return await Geolocator.getCurrentPosition(
-        desiredAccuracy: LocationAccuracy.high,
+      print('DEBUG: Calling Geolocator.getCurrentPosition...');
+      final position = await Geolocator.getCurrentPosition(
+        desiredAccuracy: LocationAccuracy.bestForNavigation, // More robust
+        timeLimit: const Duration(seconds: 10), // Adding a timeout
       );
+      print('DEBUG: Successfully got location: ${position.latitude}, ${position.longitude}');
+      return position;
     } catch (e) {
-      print("Error getting current position: $e");
-      return null;
+      print("DEBUG: Error getting current position: $e");
+      // Fallback to last known position if active fetch fails
+      return await Geolocator.getLastKnownPosition();
     }
   }
 
@@ -131,6 +137,42 @@ class LocationService {
       print('Error fetching nearby responders: $e');
       return [];
     }
+  }
+
+  /// Get responders nearby as a stream for real-time tracking (Uber-style)
+  Stream<List<ResponderWithDistance>> getRespondersNearbyStream(
+    double userLat,
+    double userLon,
+    double radiusKm
+  ) {
+    return FirebaseFirestore.instance
+        .collection('users')
+        .where('role', isEqualTo: 'emergency_responder')
+        .where('isOnline', isEqualTo: true)
+        .snapshots()
+        .map((snapshot) {
+      List<ResponderWithDistance> nearby = [];
+      for (var doc in snapshot.docs) {
+        final data = doc.data();
+        final location = data['currentLocation'] as Map<String, dynamic>?;
+
+        if (location != null &&
+            location['latitude'] != null &&
+            location['longitude'] != null) {
+          double resLat = (location['latitude'] as num).toDouble();
+          double resLon = (location['longitude'] as num).toDouble();
+
+          double distance = calculateDistance(userLat, userLon, resLat, resLon);
+
+          if (distance <= radiusKm) {
+            nearby.add(ResponderWithDistance.fromFirestore(
+                doc, userLat, userLon, distance));
+          }
+        }
+      }
+      nearby.sort((a, b) => a.distance.compareTo(b.distance));
+      return nearby;
+    });
   }
 
   /// Get hospitals within radius

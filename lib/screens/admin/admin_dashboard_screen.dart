@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:resq_flutter/screens/notifications_screen.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class AdminDashboardScreen extends StatelessWidget {
   const AdminDashboardScreen({super.key});
@@ -10,11 +13,47 @@ class AdminDashboardScreen extends StatelessWidget {
       appBar: AppBar(
         title: const Text('Admin Dashboard'),
         actions: [
+          Stack(
+            children: [
+              IconButton(
+                onPressed: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(builder: (context) => const NotificationsScreen()),
+                  );
+                },
+                icon: const Icon(LucideIcons.bell, color: Color(0xFF0F172A)),
+              ),
+              StreamBuilder<QuerySnapshot>(
+                stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(FirebaseAuth.instance.currentUser?.uid)
+                  .collection('notifications')
+                  .where('isRead', isEqualTo: false)
+                  .snapshots(),
+                builder: (context, snapshot) {
+                  if (snapshot.hasData && snapshot.data!.docs.isNotEmpty) {
+                    return Positioned(
+                      right: 12,
+                      top: 12,
+                      child: Container(
+                        padding: const EdgeInsets.all(2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDC2626),
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        constraints: const BoxConstraints(minWidth: 8, minHeight: 8),
+                      ),
+                    );
+                  }
+                  return const SizedBox();
+                },
+              ),
+            ],
+          ),
           IconButton(
             icon: const Icon(Icons.refresh),
-            onPressed: () {
-              // The StreamBuilder automatically updates
-            },
+            onPressed: () {},
           ),
         ],
       ),

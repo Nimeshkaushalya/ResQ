@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:math';
+import 'package:url_launcher/url_launcher.dart';
 
 class EmergencyService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -60,6 +61,17 @@ class EmergencyService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
+      // Notify Emergency Contacts if SOS
+      if (emergencyType == 'SOS') {
+        List<dynamic> contacts = userDoc.exists ? (userDoc.data() as Map<String, dynamic>)['emergencyContacts'] ?? [] : [];
+        for (var contact in contacts) {
+          final phone = contact['phone'];
+          if (phone != null && phone.isNotEmpty) {
+            _sendEmergencySMS(phone, userName, address);
+          }
+        }
+      }
+
       return {
         'success': true,
         'message': 'Emergency reported successfully.',
@@ -83,5 +95,24 @@ class EmergencyService {
         .where('userId', isEqualTo: currentUser.uid)
         .orderBy('createdAt', descending: true)
         .snapshots();
+  }
+
+  Future<void> _sendEmergencySMS(String phoneNumber, String userName, String address) async {
+    final String message = "EMERGENCY! $userName has triggered an SOS from ResQ App. Location: $address. Please check on them immediately!";
+    final Uri smsUri = Uri(
+      scheme: 'sms',
+      path: phoneNumber,
+      queryParameters: <String, String>{
+        'body': message,
+      },
+    );
+
+    try {
+      if (await canLaunchUrl(smsUri)) {
+        await launchUrl(smsUri);
+      }
+    } catch (e) {
+      print("Could not launch SMS: $e");
+    }
   }
 }

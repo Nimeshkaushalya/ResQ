@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 import '../services/auth_service.dart';
 import '../services/cloudinary_service.dart';
 import '../data/responder_types.dart';
@@ -13,16 +14,15 @@ class SignupScreen extends StatefulWidget {
 }
 
 class _SignupScreenState extends State<SignupScreen> {
-  final _formKey = GlobalKey<FormState>();
-  final _usernameController = TextEditingController(); // NEW
+  final _usernameController = TextEditingController();
   final _emailController = TextEditingController();
-  final _phoneController = TextEditingController(); // NEW
+  final _phoneController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController(); // NEW
+  final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
 
-  String _selectedRole = 'user'; // Default role
-  String? _selectedCategory; // NEW
+  String _selectedRole = 'user';
+  String? _selectedCategory;
   bool _isLoading = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
@@ -39,10 +39,8 @@ class _SignupScreenState extends State<SignupScreen> {
     final XFile? image = await _picker.pickImage(source: source);
     if (image != null) {
       setState(() {
-        if (type == 'nicFront')
-          _nicFrontImage = File(image.path);
-        else if (type == 'nicBack')
-          _nicBackImage = File(image.path);
+        if (type == 'nicFront') _nicFrontImage = File(image.path);
+        else if (type == 'nicBack') _nicBackImage = File(image.path);
         else if (type == 'cert') _certImage = File(image.path);
       });
     }
@@ -51,19 +49,20 @@ class _SignupScreenState extends State<SignupScreen> {
   void _showPicker(BuildContext context, String type) {
     showModalBottomSheet(
       context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (BuildContext bc) {
         return SafeArea(
           child: Wrap(
             children: <Widget>[
               ListTile(
-                  leading: const Icon(Icons.photo_library),
+                  leading: const Icon(LucideIcons.image),
                   title: const Text('Photo Library'),
                   onTap: () {
                     _pickImage(type, ImageSource.gallery);
                     Navigator.of(context).pop();
                   }),
               ListTile(
-                leading: const Icon(Icons.photo_camera),
+                leading: const Icon(LucideIcons.camera),
                 title: const Text('Camera'),
                 onTap: () {
                   _pickImage(type, ImageSource.camera);
@@ -77,114 +76,42 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  void _skipVerification() async {
-    // DEV ONLY: Bypass Cloudinary and image requirements entirely
-    setState(() {
-      _isLoading = true;
-    });
-
-    print('DEV SKIP: Signup attempt started for ${_emailController.text}');
-    String? error = await _authService.signUp(
-      email: _emailController.text.trim(),
-      username: _usernameController.text.trim(),
-      phoneNumber: _phoneController.text.trim(),
-      password: _passwordController.text.trim(),
-      role: _selectedRole,
-      responderType: _selectedCategory,
-      documents: {'devSkip': 'true'}, // Dummy data
-    );
-    print('DEV SKIP: Signup attempt finished with error: $error');
-
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (error != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
-      }
-    } else {
-      if (mounted) {
-        Navigator.pop(context); // Go back to login/main flow
-      }
-    }
-  }
-
   void _signup() async {
-    // TEMPORARY: Disabled document validation for easy testing
-    /*
-    if (_selectedRole == 'emergency_responder') {
-      if (_nicFrontImage == null || _certImage == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'Work ID Details and Professional Certificate are required')),
-        );
-        return;
-      }
-    } else {
-      // user
-      if (_nicFrontImage == null || _nicBackImage == null) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-              content: Text(
-                  'NIC/Driving License/Passport (Front & Back) are required')),
-        );
-        return;
-      }
-    }
-    */
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    Map<String, String>? uploadedDocs;
-
-    try {
-      String nicFrontUrl = _nicFrontImage != null
-          ? await _cloudinaryService.uploadImage(_nicFrontImage!) ?? 'dummy_url'
-          : 'dummy_url';
-
-      String? certUrl;
-      if (_selectedRole == 'emergency_responder') {
-        certUrl = _certImage != null
-            ? await _cloudinaryService.uploadImage(_certImage!) ?? 'dummy_url'
-            : 'dummy_url';
-      }
-
-      String? nicBackUrl;
-      if (_nicBackImage != null) {
-        nicBackUrl = await _cloudinaryService.uploadImage(_nicBackImage!);
-      } else {
-        nicBackUrl = 'dummy_url';
-      }
-
-      uploadedDocs = {
-        'nicFront': nicFrontUrl,
-      };
-
-      if (certUrl != null) {
-        uploadedDocs['certificate'] = certUrl;
-      }
-      if (nicBackUrl != null) {
-        uploadedDocs['nicBack'] = nicBackUrl;
-      }
-    } catch (e) {
-      setState(() {
-        _isLoading = false;
-      });
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Document upload failed: $e')),
-        );
-      }
+    // Validation
+    if (_nicFrontImage == null || _nicBackImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please upload both sides of your ID')));
       return;
     }
 
-    print('Signup attempt started for ${_emailController.text}');
+    if (_selectedRole == 'emergency_responder' && _certImage == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Verification certificate is required for responders')));
+      return;
+    }
+
+    setState(() => _isLoading = true);
+    Map<String, String> uploadedDocs = {};
+
+    try {
+      // Upload Images
+      String? nicFrontUrl = await _cloudinaryService.uploadImage(_nicFrontImage!);
+      String? nicBackUrl = await _cloudinaryService.uploadImage(_nicBackImage!);
+      
+      if (nicFrontUrl == null || nicBackUrl == null) throw 'ID upload failed';
+      
+      uploadedDocs['nicFront'] = nicFrontUrl;
+      uploadedDocs['nicBack'] = nicBackUrl;
+
+      if (_selectedRole == 'emergency_responder') {
+        String? certUrl = await _cloudinaryService.uploadImage(_certImage!);
+        if (certUrl == null) throw 'Certificate upload failed';
+        uploadedDocs['certificate'] = certUrl;
+      }
+    } catch (e) {
+      setState(() => _isLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Upload failed: $e')));
+      return;
+    }
+
     String? error = await _authService.signUp(
       email: _emailController.text.trim(),
       username: _usernameController.text.trim(),
@@ -194,270 +121,98 @@ class _SignupScreenState extends State<SignupScreen> {
       responderType: _selectedCategory,
       documents: uploadedDocs,
     );
-    print('Signup attempt finished with error: $error');
 
-    setState(() {
-      _isLoading = false;
-    });
+    setState(() => _isLoading = false);
 
     if (error != null) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(error)),
-        );
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else {
-      print('Signup successful. Popping screen.');
       if (mounted) {
-        Navigator.pop(context); // Go back to login/main flow
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully!')));
+        Navigator.pop(context);
       }
     }
   }
 
   @override
-  void dispose() {
-    _usernameController.dispose();
-    _emailController.dispose();
-    _phoneController.dispose();
-    _passwordController.dispose();
-    _confirmPasswordController.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('ResQ Sign Up')),
-      body: Form(
-        key: _formKey,
-        child: Stepper(
-          type: StepperType.vertical,
-          currentStep: _currentStep,
-          onStepContinue: () {
-            if (_currentStep == 0) {
-              // TEMPORARY: form validation disabled for easy testing
-              // if (_formKey.currentState!.validate()) {
-              if (_passwordController.text != _confirmPasswordController.text) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(content: Text('Passwords do not match')),
-                );
-                return;
-              }
-              /*
-                if (_selectedRole == 'emergency_responder' &&
-                    _selectedCategory == null) {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                        content: Text('Please select a responder category')),
-                  );
-                  return;
-                }
-                */
-              setState(() {
-                _currentStep += 1;
-              });
-              // }
-            } else if (_currentStep == 1) {
-              _signup();
-            }
-          },
-          onStepCancel: () {
-            if (_currentStep > 0) {
-              setState(() {
-                _currentStep -= 1;
-              });
-            } else {
-              Navigator.pop(context);
-            }
-          },
-          controlsBuilder: (BuildContext context, ControlsDetails details) {
-            return Padding(
-              padding: const EdgeInsets.only(top: 24.0),
+      backgroundColor: Colors.white,
+      body: SafeArea(
+        child: Column(
+          children: [
+            // Custom Header
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               child: Row(
-                children: <Widget>[
-                  Expanded(
-                    child: _isLoading
-                        ? const Center(child: CircularProgressIndicator())
-                        : ElevatedButton(
-                            onPressed: details.onStepContinue,
-                            child: Text(_currentStep == 1
-                                ? 'Complete Sign Up'
-                                : 'Continue'),
-                          ),
-                  ),
-                  const SizedBox(width: 16),
-                  Expanded(
-                    child: OutlinedButton(
-                      onPressed: _isLoading ? null : details.onStepCancel,
-                      child: const Text('Back'),
-                    ),
-                  ),
-                ],
-              ),
-            );
-          },
-          steps: [
-            Step(
-              title: const Text('Account Details'),
-              isActive: _currentStep >= 0,
-              state: _currentStep > 0 ? StepState.complete : StepState.indexed,
-              content: Column(
                 children: [
-                  TextFormField(
-                    controller: _usernameController,
-                    decoration: const InputDecoration(labelText: 'Username'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Please enter a username' : null,
+                  IconButton(
+                    onPressed: () => Navigator.pop(context),
+                    icon: const Icon(LucideIcons.arrowLeft, color: Color(0xFF0F172A)),
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _emailController,
-                    decoration: const InputDecoration(labelText: 'Email'),
-                    validator: (value) =>
-                        value!.isEmpty ? 'Please enter your email' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _phoneController,
-                    decoration:
-                        const InputDecoration(labelText: 'Phone Number'),
-                    keyboardType: TextInputType.phone,
-                    validator: (value) => value!.isEmpty
-                        ? 'Please enter your phone number'
-                        : null,
-                  ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _passwordController,
-                    decoration: InputDecoration(
-                      labelText: 'Password',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscurePassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscurePassword = !_obscurePassword;
-                          });
-                        },
-                      ),
+                  const Expanded(
+                    child: Text(
+                      'Create Account',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                     ),
-                    obscureText: _obscurePassword,
-                    validator: (value) {
-                      if (value == null || value.isEmpty)
-                        return 'Please enter your password';
-                      if (value.length < 6)
-                        return 'Password must be at least 6 characters';
-                      return null;
-                    },
                   ),
-                  const SizedBox(height: 16),
-                  TextFormField(
-                    controller: _confirmPasswordController,
-                    decoration: InputDecoration(
-                      labelText: 'Confirm Password',
-                      suffixIcon: IconButton(
-                        icon: Icon(
-                          _obscureConfirmPassword
-                              ? Icons.visibility_off
-                              : Icons.visibility,
-                        ),
-                        onPressed: () {
-                          setState(() {
-                            _obscureConfirmPassword = !_obscureConfirmPassword;
-                          });
-                        },
-                      ),
-                    ),
-                    obscureText: _obscureConfirmPassword,
-                    validator: (value) =>
-                        value!.isEmpty ? 'Please confirm your password' : null,
-                  ),
-                  const SizedBox(height: 16),
-                  DropdownButtonFormField<String>(
-                    value: _selectedRole,
-                    decoration: const InputDecoration(labelText: 'Role'),
-                    items: const [
-                      DropdownMenuItem(value: 'user', child: Text('User')),
-                      DropdownMenuItem(
-                          value: 'emergency_responder',
-                          child: Text('Emergency Service')),
-                    ],
-                    onChanged: (value) {
-                      setState(() {
-                        _selectedRole = value!;
-                        if (_selectedRole != 'emergency_responder') {
-                          _selectedCategory = null;
-                        }
-                      });
-                    },
-                  ),
-                  if (_selectedRole == 'emergency_responder') ...[
-                    const SizedBox(height: 16),
-                    DropdownButtonFormField<String>(
-                      value: _selectedCategory,
-                      decoration: const InputDecoration(
-                          labelText: 'Responder Category'),
-                      items: responderCategories.map((String category) {
-                        return DropdownMenuItem(
-                          value: category,
-                          child: Text(category),
-                        );
-                      }).toList(),
-                      onChanged: (value) {
-                        setState(() {
-                          _selectedCategory = value;
-                        });
-                      },
-                    ),
-                  ],
+                  const SizedBox(width: 48), // Equalizer
                 ],
               ),
             ),
-            Step(
-              title: const Text('Identity Verification'),
-              isActive: _currentStep >= 1,
-              content: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+
+            // Progress Bar
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+              child: Row(
                 children: [
-                  Text(
-                    _selectedRole == 'user'
-                        ? 'Please upload your National ID, Driving License, or Passport to verify your account.'
-                        : 'Please upload your Service ID and Professional Certificate to verify your responder status.',
-                    style: const TextStyle(color: Colors.grey),
-                  ),
-                  const SizedBox(height: 24),
-                  if (_selectedRole == 'user') ...[
-                    _buildImagePickerButton(
-                        'ID/License/Passport Front (Required)',
-                        _nicFrontImage,
-                        () => _showPicker(context, 'nicFront')),
-                    const SizedBox(height: 12),
-                    _buildImagePickerButton(
-                        'ID/License/Passport Back (Required)',
-                        _nicBackImage,
-                        () => _showPicker(context, 'nicBack')),
-                  ] else ...[
-                    _buildImagePickerButton('Work ID / Details (Required)',
-                        _nicFrontImage, () => _showPicker(context, 'nicFront')),
-                    const SizedBox(height: 12),
-                    _buildImagePickerButton(
-                        'Professional Certificate (Required)',
-                        _certImage,
-                        () => _showPicker(context, 'cert')),
-                    const SizedBox(height: 12),
-                    _buildImagePickerButton('Additional Docs (Optional)',
-                        _nicBackImage, () => _showPicker(context, 'nicBack')),
-                  ],
-                  const SizedBox(height: 24),
-                  Center(
-                    child: TextButton.icon(
-                      onPressed: _skipVerification,
-                      icon: const Icon(Icons.bug_report, color: Colors.orange),
-                      label: const Text('Skip Verification (Dev Only)',
-                          style: TextStyle(color: Colors.orange)),
+                  _buildProgressDot(0),
+                  _buildProgressLine(0),
+                  _buildProgressDot(1),
+                  _buildProgressLine(1),
+                  _buildProgressDot(2),
+                ],
+              ),
+            ),
+
+            Expanded(
+              child: SingleChildScrollView(
+                padding: const EdgeInsets.all(24),
+                child: _buildCurrentStep(),
+              ),
+            ),
+
+            // Bottom Actions
+            Padding(
+              padding: const EdgeInsets.all(24),
+              child: Row(
+                children: [
+                  if (_currentStep > 0)
+                    Expanded(
+                      child: OutlinedButton(
+                        onPressed: _isLoading ? null : () => setState(() => _currentStep--),
+                        style: OutlinedButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          side: BorderSide(color: Colors.grey.shade300),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        ),
+                        child: const Text('Back', style: TextStyle(color: Color(0xFF0F172A))),
+                      ),
+                    ),
+                  if (_currentStep > 0) const SizedBox(width: 16),
+                  Expanded(
+                    child: ElevatedButton(
+                      onPressed: _isLoading ? null : _handleContinue,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFFDC2626),
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        elevation: 0,
+                      ),
+                      child: _isLoading 
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : Text(_currentStep == 2 ? 'Finish' : 'Continue', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                     ),
                   ),
                 ],
@@ -469,38 +224,224 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildImagePickerButton(
-      String label, File? image, VoidCallback onPressed) {
-    return InkWell(
-      onTap: onPressed,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(16),
+  void _handleContinue() {
+    if (_currentStep == 0) {
+      if (_selectedRole == 'emergency_responder' && _selectedCategory == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select your service type')));
+        return;
+      }
+      setState(() => _currentStep = 1);
+    } else if (_currentStep == 1) {
+      if (_usernameController.text.isEmpty || _emailController.text.isEmpty) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
+        return;
+      }
+      if (_passwordController.text != _confirmPasswordController.text) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+        return;
+      }
+      setState(() => _currentStep = 2);
+    } else {
+      _signup();
+    }
+  }
+
+  Widget _buildCurrentStep() {
+    switch (_currentStep) {
+      case 0: return _buildRoleSelection();
+      case 1: return _buildAccountDetails();
+      case 2: return _buildVerification();
+      default: return const SizedBox();
+    }
+  }
+
+  Widget _buildRoleSelection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Choose Your Role", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text("Select how you want to use ResQ", style: TextStyle(color: Colors.grey.shade600)),
+        const SizedBox(height: 32),
+        _buildRoleCard(
+          'user', 
+          'Citizen', 
+          'Report emergencies and get immediate help from nearby responders.', 
+          LucideIcons.user, 
+          Colors.blue
+        ),
+        const SizedBox(height: 16),
+        _buildRoleCard(
+          'emergency_responder', 
+          'Responder', 
+          'Verified emergency service personnel ready to save lives.', 
+          LucideIcons.shieldAlert, 
+          Colors.red
+        ),
+        if (_selectedRole == 'emergency_responder') ...[
+          const SizedBox(height: 32),
+          const Text("Service Category", style: TextStyle(fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade50,
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.grey.shade200),
+            ),
+            child: DropdownButtonHideUnderline(
+              child: DropdownButton<String>(
+                value: _selectedCategory,
+                isExpanded: true,
+                hint: const Text("Select Category"),
+                items: responderCategories.map((c) => DropdownMenuItem(value: c, child: Text(c))).toList(),
+                onChanged: (v) => setState(() => _selectedCategory = v),
+              ),
+            ),
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildAccountDetails() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Account Details", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text("Setup your official ResQ profile", style: TextStyle(color: Colors.grey.shade600)),
+        const SizedBox(height: 32),
+        _buildInputField(_usernameController, 'Username', LucideIcons.user),
+        const SizedBox(height: 16),
+        _buildInputField(_emailController, 'Email Address', LucideIcons.mail, keyboard: TextInputType.emailAddress),
+        const SizedBox(height: 16),
+        _buildInputField(_phoneController, 'Phone Number', LucideIcons.phone, keyboard: TextInputType.phone),
+        const SizedBox(height: 16),
+        _buildInputField(_passwordController, 'Password', LucideIcons.lock, isPassword: true, obscure: _obscurePassword, onToggle: () => setState(() => _obscurePassword = !_obscurePassword)),
+        const SizedBox(height: 16),
+        _buildInputField(_confirmPasswordController, 'Confirm Password', LucideIcons.lock, isPassword: true, obscure: _obscureConfirmPassword, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword)),
+      ],
+    );
+  }
+
+  Widget _buildVerification() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Text("Verification", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 8),
+        Text("Upload documents to verify your identity", style: TextStyle(color: Colors.grey.shade600)),
+        const SizedBox(height: 32),
+        _buildUploadCard('National ID / License Front', _nicFrontImage, () => _showPicker(context, 'nicFront')),
+        const SizedBox(height: 16),
+        _buildUploadCard('National ID / License Back', _nicBackImage, () => _showPicker(context, 'nicBack')),
+        if (_selectedRole == 'emergency_responder') ...[
+          const SizedBox(height: 16),
+          _buildUploadCard('Service Certificate', _certImage, () => _showPicker(context, 'cert')),
+        ],
+      ],
+    );
+  }
+
+  // --- Helper Widgets ---
+
+  Widget _buildRoleCard(String role, String title, String desc, IconData icon, Color color) {
+    bool isSelected = _selectedRole == role;
+    return GestureDetector(
+      onTap: () => setState(() => _selectedRole = role),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: image != null ? Colors.green.withOpacity(0.1) : Colors.white,
-          border: Border.all(
-              color: image != null ? Colors.green : Colors.grey.shade400),
-          borderRadius: BorderRadius.circular(12),
+          color: isSelected ? color.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(16),
+          border: Border.all(color: isSelected ? color : Colors.grey.shade200, width: 2),
         ),
         child: Row(
           children: [
-            Icon(image != null ? Icons.check_circle : Icons.cloud_upload,
-                color: image != null ? Colors.green : Colors.blue.shade700,
-                size: 28),
-            const SizedBox(width: 16),
+            Container(
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(color: isSelected ? color : Colors.grey.shade100, shape: BoxShape.circle),
+              child: Icon(icon, color: isSelected ? Colors.white : Colors.grey.shade600),
+            ),
+            const SizedBox(width: 20),
             Expanded(
-              child: Text(
-                image != null ? 'Document Uploaded' : label,
-                style: TextStyle(
-                    color:
-                        image != null ? Colors.green.shade700 : Colors.black87,
-                    fontWeight:
-                        image != null ? FontWeight.bold : FontWeight.w500,
-                    fontSize: 16),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(title, style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isSelected ? color : const Color(0xFF0F172A))),
+                  Text(desc, style: TextStyle(fontSize: 13, color: Colors.grey.shade600)),
+                ],
               ),
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildInputField(TextEditingController controller, String label, IconData icon, {bool isPassword = false, bool obscure = false, VoidCallback? onToggle, TextInputType keyboard = TextInputType.text}) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade200),
+      ),
+      child: TextFormField(
+        controller: controller,
+        obscureText: obscure,
+        keyboardType: keyboard,
+        decoration: InputDecoration(
+          labelText: label,
+          prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
+          suffixIcon: isPassword ? IconButton(icon: Icon(obscure ? LucideIcons.eyeOff : LucideIcons.eye, size: 20), onPressed: onToggle) : null,
+          border: InputBorder.none,
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildUploadCard(String label, File? file, VoidCallback onTap) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(12),
+      child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.all(16),
+        decoration: BoxDecoration(
+          color: file != null ? Colors.green.withOpacity(0.05) : Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(color: file != null ? Colors.green : Colors.grey.shade300, style: file != null ? BorderStyle.solid : BorderStyle.none),
+        ),
+        child: Row(
+          children: [
+            Icon(file != null ? LucideIcons.checkCircle2 : LucideIcons.uploadCloud, color: file != null ? Colors.green : Colors.blue),
+            const SizedBox(width: 16),
+            Expanded(child: Text(file != null ? 'Document Ready' : label, style: TextStyle(fontWeight: file != null ? FontWeight.bold : FontWeight.normal, color: file != null ? Colors.green : const Color(0xFF0F172A)))),
+            if (file != null) const Icon(LucideIcons.refreshCw, size: 16, color: Colors.green),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildProgressDot(int step) {
+    bool active = _currentStep >= step;
+    return Container(
+      width: 12,
+      height: 12,
+      decoration: BoxDecoration(color: active ? const Color(0xFFDC2626) : Colors.grey.shade300, shape: BoxShape.circle),
+    );
+  }
+
+  Widget _buildProgressLine(int step) {
+    bool active = _currentStep > step;
+    return Expanded(
+      child: Container(
+        height: 2,
+        color: active ? const Color(0xFFDC2626) : Colors.grey.shade300,
       ),
     );
   }

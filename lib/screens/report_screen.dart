@@ -8,10 +8,11 @@ import 'package:resq_flutter/services/gemini_service.dart';
 import 'package:resq_flutter/services/cloudinary_service.dart';
 import 'package:resq_flutter/services/emergency_service.dart';
 import 'package:video_player/video_player.dart';
+import 'package:speech_to_text/speech_to_text.dart' as stt;
 
 class ReportScreen extends StatefulWidget {
   final String initialType;
-  final String? preSelectedResponderId; // NEW
+  final String? preSelectedResponderId;
   const ReportScreen({super.key, required this.initialType, this.preSelectedResponderId});
 
   @override
@@ -33,16 +34,45 @@ class _ReportScreenState extends State<ReportScreen> {
   String? _uploadedMediaUrl;
   String? _aiAnalysis;
 
+  // Speech to Text
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  bool _speechEnabled = false;
+
   @override
   void initState() {
     super.initState();
     _fetchLocation();
+    _initSpeech();
+  }
+
+  void _initSpeech() async {
+    _speech = stt.SpeechToText();
+    _speechEnabled = await _speech.initialize();
+    setState(() {});
+  }
+
+  void _listen() async {
+    if (!_isListening) {
+      if (_speechEnabled) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _descriptionController.text = val.recognizedWords;
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+    }
   }
 
   @override
   void dispose() {
     _videoController?.dispose();
     _descriptionController.dispose();
+    _speech.stop();
     super.dispose();
   }
 
@@ -379,6 +409,33 @@ class _ReportScreenState extends State<ReportScreen> {
                       hintText: "Describe the situation...",
                       filled: true,
                       fillColor: Colors.white,
+                      suffixIcon: Padding(
+                        padding: const EdgeInsets.all(8.0),
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            GestureDetector(
+                              onTap: _listen,
+                              child: AnimatedContainer(
+                                duration: const Duration(milliseconds: 300),
+                                padding: const EdgeInsets.all(10),
+                                decoration: BoxDecoration(
+                                  color: _isListening ? Colors.red : Colors.grey.shade100,
+                                  shape: BoxShape.circle,
+                                  boxShadow: _isListening ? [
+                                    BoxShadow(color: Colors.red.withOpacity(0.4), blurRadius: 12, spreadRadius: 4)
+                                  ] : [],
+                                ),
+                                child: Icon(
+                                  _isListening ? LucideIcons.mic : LucideIcons.mic,
+                                  color: _isListening ? Colors.white : Colors.grey.shade600,
+                                  size: 20,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                         borderSide: BorderSide(color: Colors.grey.shade300),

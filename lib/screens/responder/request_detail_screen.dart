@@ -24,6 +24,27 @@ class RequestDetailScreen extends StatefulWidget {
 
 class _RequestDetailScreenState extends State<RequestDetailScreen> {
   bool _isLoading = false;
+  Map<String, dynamic>? _victimData;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchVictimData();
+  }
+
+  Future<void> _fetchVictimData() async {
+    final uid = widget.requestData['userId'];
+    if (uid != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        if (doc.exists && mounted) {
+          setState(() => _victimData = doc.data());
+        }
+      } catch (e) {
+        print("Error fetching victim data: $e");
+      }
+    }
+  }
 
   Future<void> _acceptRequest() async {
     final user = FirebaseAuth.instance.currentUser;
@@ -75,6 +96,50 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
       }
+    }
+  }
+
+  Future<void> _updateStatus(String newStatus) async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return;
+
+    setState(() => _isLoading = true);
+
+    try {
+      final docRef = FirebaseFirestore.instance.collection('emergencies').doc(widget.requestId);
+      
+      await docRef.update({
+        'status': newStatus,
+        if (newStatus == 'resolved') 'resolvedAt': FieldValue.serverTimestamp(),
+      });
+
+      // If status is resolved, increment the responder's totalResolved count
+      if (newStatus == 'resolved') {
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          'totalResolved': FieldValue.increment(1),
+        });
+      }
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Status updated to: ${newStatus.replaceAll('_', ' ')}')),
+        );
+        // Refresh local state if not popping
+        setState(() {
+          widget.requestData['status'] = newStatus;
+        });
+        if (newStatus == 'resolved') {
+           Navigator.pop(context); // Go back after resolving
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error updating status: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -383,7 +448,38 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 48),
+            const SizedBox(height: 32),
+
+            // Victim Medical Info (Visible after acceptance)
+            if (_victimData != null && status != 'pending') ...[
+              const Text(
+                'Victim Medical Profile',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFFDC2626),
+                ),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: Colors.red.shade50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.red.shade100),
+                ),
+                child: Column(
+                  children: [
+                    _buildMedicalRow(LucideIcons.droplets, "Blood Group", 
+                        _victimData!['bloodGroup'] ?? 'Not Provided'),
+                    const Divider(height: 24),
+                    _buildMedicalRow(LucideIcons.activity, "Conditions", 
+                        (_victimData!['medicalConditions'] as List?)?.join(", ") ?? 'No chronic conditions reported'),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
 
             // Action Buttons
             if (status == 'pending')
@@ -395,25 +491,33 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     backgroundColor: const Color(0xFFDC2626),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  icon: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              color: Colors.white, strokeWidth: 2),
-                        )
-                      : const Icon(LucideIcons.checkSquare),
+                  icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(LucideIcons.checkSquare),
+                  label: Text(_isLoading ? 'Accepting...' : 'ACCEPT REQUEST', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                ),
+              )
+            else if (status != 'resolved')
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: _isLoading ? null : () {
+                    if (status == 'accepted') _updateStatus('on_the_way');
+                    else if (status == 'on_the_way') _updateStatus('arrived');
+                    else if (status == 'arrived') _updateStatus('resolved');
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: status == 'arrived' ? Colors.green : const Color(0xFF2563EB),
+                    foregroundColor: Colors.white,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                  icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Icon(status == 'arrived' ? LucideIcons.checkCircle : LucideIcons.play),
                   label: Text(
-                    _isLoading ? 'Accepting...' : 'ACCEPT REQUEST',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      letterSpacing: 1,
-                    ),
+                    _isLoading ? 'Updating...' : 
+                    status == 'accepted' ? 'ON THE WAY' :
+                    status == 'on_the_way' ? 'I HAVE ARRIVED' : 'MARK AS RESOLVED',
+                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
                   ),
                 ),
               ),
@@ -468,6 +572,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           ],
         ),
       ),
+    );
+  }
+
+  Widget _buildMedicalRow(IconData icon, String label, String value) {
+    return Row(
+      children: [
+        Icon(icon, size: 20, color: const Color(0xFFDC2626)),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            ],
+          ),
+        ),
+      ],
     );
   }
 }

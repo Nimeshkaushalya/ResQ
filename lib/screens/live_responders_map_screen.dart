@@ -22,7 +22,7 @@ class LiveRespondersMapScreen extends StatefulWidget {
 class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
   final MapController _mapController = MapController();
   final LocationService _locationService = LocationService();
-  final double _radiusKm = 5.0;
+  final double _radiusKm = 10.0;
   
   Position? _currentPosition;
   List<ResponderWithDistance> _nearbyResponders = [];
@@ -35,65 +35,24 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
   bool _isMapReady = false; // NEW FLAG
   
   StreamSubscription<Position>? _positionStream;
-  Timer? _fetchTimer;
+  StreamSubscription<List<ResponderWithDistance>>? _respondersStream;
 
   @override
   void initState() {
     super.initState();
     _initLocation();
-    
-    // Periodically fetch responders to simulate real-time updates
-    _fetchTimer = Timer.periodic(const Duration(seconds: 15), (_) => _loadNearbyResponders());
   }
 
   @override
   void dispose() {
     _positionStream?.cancel();
-    _fetchTimer?.cancel();
+    _respondersStream?.cancel();
     _mapController.dispose();
     super.dispose();
   }
 
-  Future<void> _initLocation() async {
-    final position = await LocationService.getCurrentLocation();
-    if (position != null) {
-      if (mounted) {
-        setState(() {
-          _currentPosition = position;
-        });
-        _loadNearbyResponders();
-        
-        // Listen for location changes
-        _positionStream = Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 10,
-          ),
-        ).listen((pos) {
-          if (mounted) {
-          setState(() {
-            _currentPosition = pos;
-          });
-          if (!_hasMovedToInitialLocation && _isMapReady) {
-            _mapController.move(LatLng(pos.latitude, pos.longitude), 14.0);
-            _hasMovedToInitialLocation = true;
-          }
-        }
-      });
-    }
-  } else {
-      if (mounted) setState(() => _isLoading = false);
-    }
-  }
-
-  Future<void> _loadNearbyResponders() async {
+  Future<void> _loadStaticFacilities() async {
     if (_currentPosition == null) return;
-
-    final responders = await _locationService.getRespondersNearby(
-      _currentPosition!.latitude,
-      _currentPosition!.longitude,
-      _radiusKm,
-    );
 
     final hospitals = await _locationService.getNearbyHospitals(
       _currentPosition!.latitude,
@@ -115,12 +74,56 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
 
     if (mounted) {
       setState(() {
-        _nearbyResponders = responders;
         _nearbyHospitals = hospitals;
         _nearbyPolice = police;
         _nearbyFire = fire;
-        _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _initLocation() async {
+    final position = await LocationService.getCurrentLocation();
+    if (position != null) {
+      if (mounted) {
+        setState(() {
+          _currentPosition = position;
+        });
+        _loadStaticFacilities();
+        
+        // Listen to Responders in Real-time
+        _respondersStream = _locationService.getRespondersNearbyStream(
+          position.latitude,
+          position.longitude,
+          _radiusKm,
+        ).listen((responders) {
+           if (mounted) {
+             setState(() {
+               _nearbyResponders = responders;
+               _isLoading = false;
+             });
+           }
+        });
+        
+        // Listen for user location changes
+        _positionStream = Geolocator.getPositionStream(
+          locationSettings: const LocationSettings(
+            accuracy: LocationAccuracy.high,
+            distanceFilter: 10,
+          ),
+        ).listen((pos) {
+          if (mounted) {
+            setState(() {
+              _currentPosition = pos;
+            });
+            if (!_hasMovedToInitialLocation && _isMapReady) {
+              _mapController.move(LatLng(pos.latitude, pos.longitude), 14.0);
+              _hasMovedToInitialLocation = true;
+            }
+          }
+        });
+      }
+    } else {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
@@ -215,7 +218,7 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
             tooltip: 'Seed All Facilities',
             onPressed: () async {
               await _locationService.seedAllEmergencyFacilities();
-              _loadNearbyResponders();
+              _loadStaticFacilities();
               if (mounted) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   const SnackBar(content: Text('Hospitals, Police, and Fire Stations seeded!')),
@@ -225,7 +228,7 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
           ),
           IconButton(
             icon: const Icon(LucideIcons.refreshCw),
-            onPressed: _loadNearbyResponders,
+            onPressed: _loadStaticFacilities,
           ),
         ],
       ),

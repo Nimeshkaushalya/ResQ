@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'home_screen.dart';
-import 'report_screen.dart';
 import 'first_aid_screen.dart';
-import 'live_responders_map_screen.dart';
+import 'nearby_map_screen.dart';
 import 'profile_screen.dart';
 import 'my_reports_screen.dart'; // NEW ACTIVE CHATS SCREEN
 
@@ -19,7 +18,7 @@ class _MainScaffoldState extends State<MainScaffold> {
 
   final List<Widget> _screens = const [
     HomeScreen(),
-    LiveRespondersMapScreen(),
+    NearbyMapScreen(),
     MyReportsScreen(), // REPLACED: Easy access to chats
     FirstAidScreen(),
     ProfileScreen(),

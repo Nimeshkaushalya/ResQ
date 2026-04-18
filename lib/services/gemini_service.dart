@@ -26,24 +26,28 @@ class GeminiService {
     return _getModel('gemini-flash-latest', systemInstruction: systemInstruction);
   }
 
-  Future<String> getFirstAidAdvice(String query) async {
+  Future<String> getChatResponse(List<Content> history, String message) async {
     try {
       final systemInstruction = Content.system(
           '''You are ResQ, an intelligent emergency first aid assistant. 
         Provide clear, concise, step-by-step first aid instructions for the user's situation. 
         If the situation sounds life-threatening (e.g., no breathing, severe bleeding, chest pain), start by IMMEDIATELY telling the user to call emergency services.
-        Use bullet points for steps. Keep it simple and reassuring.''');
+        Use bullet points for steps. Keep it simple and reassuring.
+        IMPORTANT: This is a conversation. Answer the current user message based on previous context if relevant.''');
 
-      final model =
-          _getModel('gemini-flash-latest', systemInstruction: systemInstruction);
-
-      final response = await model.generateContent([Content.text(query)]);
-      return response.text ??
-          "I apologize, I could not generate advice at this moment. Please call emergency services immediately.";
+      final model = _getModel('gemini-flash-latest', systemInstruction: systemInstruction);
+      final chat = model.startChat(history: history);
+      
+      final response = await chat.sendMessage(Content.text(message));
+      return response.text ?? "I'm sorry, I couldn't process that.";
     } catch (e) {
-      print("Gemini API Error: $e");
-      return "Network error or API Key issue. Please call emergency services immediately.";
+      print("Gemini Chat Error: $e");
+      return "Network error. Please call emergency services immediately.";
     }
+  }
+
+  Future<String> getFirstAidAdvice(String query) async {
+    return getChatResponse([], query);
   }
 
   Future<String> analyzeIncident(String description, XFile? image) async {

@@ -40,7 +40,7 @@ class FirstAidCategory {
 // STATIC DATABASE: St. John Ambulance Style
 // ---------------------------------------------------------
 final List<FirstAidCategory> firstAidDatabase = [
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'burns',
     title: 'Burns & Scalds',
     icon: Icons.local_fire_department,
@@ -82,7 +82,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT place ice directly on the burn.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'bleeding',
     title: 'Severe Bleeding',
     icon: Icons.bloodtype,
@@ -119,7 +119,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT wash a major wound.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'choking',
     title: 'Choking (Adult/Child)',
     icon: Icons.no_food,
@@ -155,7 +155,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT blindly sweep the mouth with your fingers.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'cpr',
     title: 'CPR (Adult)',
     icon: Icons.monitor_heart,
@@ -200,7 +200,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT be afraid to perform CPR—doing something is better than doing nothing.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'fractures',
     title: 'Fractures & Sprains',
     icon: Icons.personal_injury,
@@ -234,7 +234,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT give them anything to eat or drink in case they need surgery.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'snakebite',
     title: 'Snake Bite',
     icon: Icons.pest_control,
@@ -270,7 +270,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT apply ice or wash the bite (medical staff may need the venom for identification).',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'electric',
     title: 'Electric Shock',
     icon: Icons.electrical_services,
@@ -308,7 +308,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT approach high-voltage wires; stay at least 18 meters away and call the authorities.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'heartattack',
     title: 'Heart Attack',
     icon: Icons.favorite,
@@ -348,7 +348,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       'Do NOT let them walk or exert themselves under any circumstances.',
     ],
   ),
-  FirstAidCategory(
+  const FirstAidCategory(
     id: 'stroke',
     title: 'Stroke',
     icon: Icons.medical_services,

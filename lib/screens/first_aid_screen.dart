@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import 'package:resq_flutter/services/gemini_service.dart';
 import 'package:resq_flutter/types.dart'; // For ChatMessage model
 import 'package:resq_flutter/screens/photo_analysis_screen.dart' as resq_photo;
+import 'package:speech_to_text/speech_to_text.dart' as stt;
+import 'package:google_generative_ai/google_generative_ai.dart';
 
 class FirstAidScreen extends StatefulWidget {
   const FirstAidScreen({super.key});
@@ -25,6 +27,42 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
   ];
   bool _isLoading = false;
 
+  // Speech to Text
+  late stt.SpeechToText _speech;
+  bool _isListening = false;
+  bool _speechEnabled = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initSpeech();
+  }
+
+  void _initSpeech() async {
+    _speech = stt.SpeechToText();
+    _speechEnabled = await _speech.initialize();
+    setState(() {});
+  }
+
+  void _toggleListening() async {
+    if (!_isListening) {
+      if (_speechEnabled) {
+        setState(() => _isListening = true);
+        _speech.listen(
+          onResult: (val) => setState(() {
+            _controller.text = val.recognizedWords;
+          }),
+        );
+      }
+    } else {
+      setState(() => _isListening = false);
+      _speech.stop();
+      if (_controller.text.isNotEmpty) {
+        _sendMessage();
+      }
+    }
+  }
+
   void _sendMessage() async {
     if (_controller.text.trim().isEmpty) return;
 
@@ -42,8 +80,18 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
 
     try {
       final gemini = Provider.of<GeminiService>(context, listen: false);
-      final responseText = await gemini.getFirstAidAdvice(
-          userText); // Context is kept in Service if needed, or simple Q&A
+      
+      // Convert current messages to Gemini history format (Content)
+      // Exclude the message we just added (the last one) when passing to history
+      final history = _messages.take(_messages.length - 1).map((m) {
+        if (m.role == 'user') {
+          return Content.text(m.text);
+        } else {
+          return Content.model([TextPart(m.text)]);
+        }
+      }).toList();
+
+      final responseText = await gemini.getChatResponse(history, userText);
 
       if (mounted) {
         setState(() {
@@ -94,6 +142,19 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
           ],
         ),
         actions: [
+          IconButton(
+            onPressed: () {
+              setState(() {
+                _messages.clear();
+                _messages.add(ChatMessage(
+                    role: 'model',
+                    text: "Chat cleared. How can I help you with first aid now?",
+                    timestamp: DateTime.now().millisecondsSinceEpoch));
+              });
+            },
+            icon: const Icon(LucideIcons.trash2, color: Color(0xFF64748B)),
+            tooltip: 'Clear Chat',
+          ),
           IconButton(
             onPressed: () {
               Navigator.push(
@@ -190,12 +251,21 @@ class _FirstAidScreenState extends State<FirstAidScreen> {
             color: Colors.white,
             child: Row(
               children: [
+                IconButton(
+                  onPressed: _toggleListening,
+                  icon: Icon(_isListening ? LucideIcons.micOff : LucideIcons.mic, color: _isListening ? Colors.white : const Color(0xFFDC2626)),
+                  style: IconButton.styleFrom(
+                    backgroundColor: _isListening ? Colors.red : const Color(0xFFFEF2F2),
+                    padding: const EdgeInsets.all(12),
+                  ),
+                ),
+                const SizedBox(width: 8),
                 Expanded(
                   child: TextField(
                     controller: _controller,
                     onSubmitted: (_) => _sendMessage(),
                     decoration: InputDecoration(
-                      hintText: "Type your situation...",
+                      hintText: _isListening ? "Listening..." : "Describe situation...",
                       filled: true,
                       fillColor: const Color(0xFFF1F5F9), // Slate-100
                       contentPadding: const EdgeInsets.symmetric(
