@@ -5,13 +5,22 @@ import 'package:tflite_flutter/tflite_flutter.dart';
 import 'package:image/image.dart' as img;
 
 // Top-level function for isolate
-List<List<List<List<int>>>>? preprocessImage(Uint8List bytes) {
+List<List<List<List<double>>>>? preprocessImage(Uint8List bytes) {
   try {
-    final img.Image? decodedImage = img.decodeImage(bytes);
+    img.Image? decodedImage = img.decodeImage(bytes);
     if (decodedImage == null) return null;
 
+    // Fix EXIF orientation if needed
+    decodedImage = img.bakeOrientation(decodedImage);
+
+    // Center crop to a square to prevent stretching
+    int size = decodedImage.width < decodedImage.height ? decodedImage.width : decodedImage.height;
+    int x = (decodedImage.width - size) ~/ 2;
+    int y = (decodedImage.height - size) ~/ 2;
+    img.Image croppedImage = img.copyCrop(decodedImage, x: x, y: y, width: size, height: size);
+
     final img.Image resizedImage =
-        img.copyResize(decodedImage, width: 224, height: 224);
+        img.copyResize(croppedImage, width: 224, height: 224);
 
     return List.generate(
       1,
@@ -21,7 +30,12 @@ List<List<List<List<int>>>>? preprocessImage(Uint8List bytes) {
           224,
           (x) {
             final pixel = resizedImage.getPixel(x, y);
-            return [pixel.r.toInt(), pixel.g.toInt(), pixel.b.toInt()];
+            // Teachable Machine Floating Point normalization (-1.0 to 1.0)
+            return [
+              (pixel.r.toInt() - 127.5) / 127.5,
+              (pixel.g.toInt() - 127.5) / 127.5,
+              (pixel.b.toInt() - 127.5) / 127.5
+            ];
           },
         ),
       ),
@@ -40,8 +54,8 @@ class OfflineAIService {
     try {
       _interpreter = await Interpreter.fromAsset('assets/ml/model.tflite');
       final labelsData = await rootBundle.loadString('assets/ml/labels.txt');
-      _labels = labelsData.split('\n');
-      print('TFLite Model loaded successfully');
+      _labels = labelsData.split('\n').where((s) => s.trim().isNotEmpty).toList();
+      print('TFLite Model loaded successfully with ${_labels!.length} labels');
     } catch (e) {
       print('Error loading offline model: $e');
     }
@@ -60,24 +74,40 @@ class OfflineAIService {
 
       if (input == null) return "Failed to decode image.";
 
-      var output = List.generate(1, (i) => List.filled(1001, 0));
+      // Dynamic output shape based on labels. Teachable machine floating point outputs doubles [0.0 - 1.0]
+      var output = List.generate(1, (i) => List.filled(_labels!.length, 0.0));
 
       _interpreter!.run(input, output);
 
       int highestIdx = 0;
-      int highestProb = 0;
+      double highestProb = 0.0;
       final results = output[0];
-      for (int i = 0; i < results.length; i++) {
+
+      Map<String, double> labelProbabilities = {};
+      for (int i = 0; i < _labels!.length; i++) {
+        String label = _labels![i].trim();
+        // Clean up the label from "0 Burn" to "Burn"
+        if (label.contains(' ')) {
+          label = label.substring(label.indexOf(' ') + 1);
+        }
+        labelProbabilities[label] = results[i];
+
         if (results[i] > highestProb) {
           highestProb = results[i];
           highestIdx = i;
         }
       }
 
+      print("!!!!! [FINAL RESULTS] Probabilities Map: $labelProbabilities !!!!!");
+
       String detectedLabel = _labels![highestIdx];
+      // Note: Teachable Machine usually prefixes labels with "0 ClassName", so we can clean it up
+      if (detectedLabel.contains(' ')) {
+        detectedLabel = detectedLabel.substring(detectedLabel.indexOf(' ') + 1);
+      }
 
       return '''[OFFLINE ANALYSIS]
-Detected Object: $detectedLabel (Confidence: ${(highestProb / 255.0 * 100).toStringAsFixed(1)}%)
+Detected Object: $detectedLabel (Confidence: ${(highestProb * 100).toStringAsFixed(1)}%)
 
 SEVERITY: Unknown (Offline Mode)
 

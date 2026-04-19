@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:provider/provider.dart';
+import 'package:resq_flutter/services/theme_provider.dart';
 import '../services/auth_service.dart';
 import 'package:resq_flutter/screens/my_reports_screen.dart' as resq_my_reports;
+import 'package:resq_flutter/screens/settings_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -78,17 +81,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Profile', style: TextStyle(fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
-        foregroundColor: const Color(0xFF0F172A),
+        title: Text(themeProvider.t('profile'), style: const TextStyle(fontWeight: FontWeight.bold)),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         elevation: 0,
         actions: [
           IconButton(
             icon: const Icon(LucideIcons.edit3, size: 20),
-            onPressed: () {}, // Could link to general settings
+            onPressed: () {},
           ),
         ],
       ),
@@ -104,7 +110,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
 
           if (!snapshot.hasData || !snapshot.data!.exists) {
-            return const Center(child: Text("No user data found"));
+            return Center(child: Text(themeProvider.t('not_set')));
           }
 
           final data = snapshot.data!.data() as Map<String, dynamic>;
@@ -129,7 +135,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     borderRadius: BorderRadius.circular(24),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
+                        color: Colors.black.withValues(alpha: 0.05),
                         blurRadius: 10,
                         offset: const Offset(0, 4),
                       )
@@ -286,8 +292,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       MaterialPageRoute(
                           builder: (_) => const resq_my_reports.MyReportsScreen()));
                 }),
-                _buildActionItem(LucideIcons.settings, "App Settings", () {}),
-                _buildActionItem(LucideIcons.logOut, "Logout", () async {
+                _buildActionItem(LucideIcons.settings, themeProvider.t('settings'), () {
+                  Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                }),
+                _buildActionItem(LucideIcons.logOut, themeProvider.t('logout'), () async {
                   await _authService.signOut();
                 }, isDestructive: true),
                 const SizedBox(height: 40),

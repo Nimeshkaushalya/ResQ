@@ -7,6 +7,7 @@ import 'package:provider/provider.dart';
 import 'package:resq_flutter/services/gemini_service.dart';
 import 'package:resq_flutter/services/cloudinary_service.dart';
 import 'package:resq_flutter/services/emergency_service.dart';
+import 'package:resq_flutter/services/theme_provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:speech_to_text/speech_to_text.dart' as stt;
 
@@ -22,7 +23,7 @@ class ReportScreen extends StatefulWidget {
 class _ReportScreenState extends State<ReportScreen> {
   int _step = 1;
   bool _loading = false;
-  bool _analyzing = false;
+  bool _analyzing = false; // true while Gemini is running — shown in UI
 
   Position? _location;
   XFile? _mediaFile;
@@ -34,7 +35,6 @@ class _ReportScreenState extends State<ReportScreen> {
   String? _uploadedMediaUrl;
   String? _aiAnalysis;
 
-  // Speech to Text
   late stt.SpeechToText _speech;
   bool _isListening = false;
   bool _speechEnabled = false;
@@ -77,46 +77,28 @@ class _ReportScreenState extends State<ReportScreen> {
   }
 
   Future<void> _fetchLocation() async {
-    bool serviceEnabled;
-    LocationPermission permission;
+    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+    if (!serviceEnabled) return;
 
-    serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      return;
-    }
-
-    permission = await Geolocator.checkPermission();
+    LocationPermission permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
-      if (permission == LocationPermission.denied) {
-        return;
-      }
+      if (permission == LocationPermission.denied) return;
     }
 
-    if (permission == LocationPermission.deniedForever) {
-      return;
-    }
+    if (permission == LocationPermission.deniedForever) return;
 
     final pos = await Geolocator.getCurrentPosition();
     if (mounted) {
-      setState(() {
-        _location = pos;
-      });
+      setState(() => _location = pos);
     }
   }
 
   Future<void> _pickMedia(ImageSource source, bool isVideo) async {
     final ImagePicker picker = ImagePicker();
-    XFile? pickedFile;
-
-    if (isVideo) {
-      pickedFile = await picker.pickVideo(source: source);
-    } else {
-      pickedFile = await picker.pickImage(source: source);
-    }
+    XFile? pickedFile = isVideo ? await picker.pickVideo(source: source) : await picker.pickImage(source: source);
 
     if (pickedFile != null) {
-      // If previous video controller exists, dispose it
       _videoController?.dispose();
       _videoController = null;
 
@@ -141,8 +123,7 @@ class _ReportScreenState extends State<ReportScreen> {
   Future<void> _submitReport() async {
     if (_descriptionController.text.isEmpty && _mediaFile == null) return;
     if (_location == null) {
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Please wait for location...')));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please wait for location...')));
       return;
     }
 
@@ -152,196 +133,60 @@ class _ReportScreenState extends State<ReportScreen> {
     });
 
     try {
-      // 1. Upload Media to Cloudinary if available
       if (_mediaFile != null) {
-        if (_isVideo) {
-          _uploadedMediaUrl =
-              await _cloudinaryService.uploadVideo(File(_mediaFile!.path));
-        } else {
-          _uploadedMediaUrl =
-              await _cloudinaryService.uploadImage(File(_mediaFile!.path));
-        }
-        print("Uploaded Media URL: $_uploadedMediaUrl");
+        _uploadedMediaUrl = _isVideo 
+          ? await _cloudinaryService.uploadVideo(File(_mediaFile!.path))
+          : await _cloudinaryService.uploadImage(File(_mediaFile!.path));
       }
 
-      // 2. AI Analysis (optional, we can do it in parallel or before saving)
       final gemini = Provider.of<GeminiService>(context, listen: false);
       try {
         _aiAnalysis = await gemini.analyzeIncident(
-            _descriptionController.text.isNotEmpty
-                ? _descriptionController.text
-                : "Emergency: ${widget.initialType}",
+            _descriptionController.text.isNotEmpty ? _descriptionController.text : "Emergency: ${widget.initialType}",
             _mediaFile != null && !_isVideo ? _mediaFile : null);
       } catch (e) {
         _aiAnalysis = "Could not analyze incident due to network error.";
       }
 
-      // 3. Save to Firestore
       final response = await _emergencyService.submitEmergencyReport(
         emergencyType: widget.initialType,
         description: _descriptionController.text,
         latitude: _location!.latitude,
         longitude: _location!.longitude,
-        address:
-            "Lat: ${_location!.latitude.toStringAsFixed(4)}, Lng: ${_location!.longitude.toStringAsFixed(4)}",
+        address: "Lat: ${_location!.latitude.toStringAsFixed(4)}, Lng: ${_location!.longitude.toStringAsFixed(4)}",
         mediaUrls: _uploadedMediaUrl != null ? [_uploadedMediaUrl!] : [],
-        preferredResponderId: widget.preSelectedResponderId, // PASS NEW PARAM
+        preferredResponderId: widget.preSelectedResponderId,
+        aiAnalysis: _aiAnalysis,
       );
 
       if (response['success'] == true) {
-        if (mounted) {
-          setState(() {
-            _step = 2; // Success Screen
-          });
-        }
+        if (mounted) setState(() => _step = 2);
       } else {
         throw Exception(response['message']);
       }
     } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text('Error: $e')));
-      }
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
-      if (mounted) {
-        setState(() {
-          _loading = false;
-          _analyzing = false;
-        });
-      }
+      if (mounted) setState(() { _loading = false; _analyzing = false; });
     }
-  }
-
-  Widget _buildMediaSelectionButtons() {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-      children: [
-        _buildMediaOptionIcon(LucideIcons.camera, "Photo",
-            () => _pickMedia(ImageSource.camera, false)),
-        _buildMediaOptionIcon(LucideIcons.image, "Gallery",
-            () => _pickMedia(ImageSource.gallery, false)),
-        _buildMediaOptionIcon(LucideIcons.video, "Video",
-            () => _pickMedia(ImageSource.camera, true)),
-        _buildMediaOptionIcon(LucideIcons.film, "Files",
-            () => _pickMedia(ImageSource.gallery, true)),
-      ],
-    );
-  }
-
-  Widget _buildMediaOptionIcon(
-      IconData icon, String label, VoidCallback onTap) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Column(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.grey.shade100,
-              shape: BoxShape.circle,
-              border: Border.all(color: Colors.grey.shade300),
-            ),
-            child: Icon(icon, color: const Color(0xFF334155)),
-          ),
-          const SizedBox(height: 4),
-          Text(label,
-              style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildMediaPreview() {
-    if (_mediaFile == null) {
-      return Container(
-        height: 150,
-        width: double.infinity,
-        decoration: BoxDecoration(
-          color: Colors.grey.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border:
-              Border.all(color: Colors.grey.shade300, style: BorderStyle.solid),
-        ),
-        child: const Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(LucideIcons.uploadCloud, size: 32, color: Colors.grey),
-            SizedBox(height: 8),
-            Text("Select media using the buttons above",
-                style: TextStyle(color: Colors.grey)),
-          ],
-        ),
-      );
-    }
-
-    return Container(
-      height: 250,
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: Colors.black,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      clipBehavior: Clip.hardEdge,
-      child: Stack(
-        alignment: Alignment.center,
-        children: [
-          if (_isVideo &&
-              _videoController != null &&
-              _videoController!.value.isInitialized)
-            AspectRatio(
-              aspectRatio: _videoController!.value.aspectRatio,
-              child: VideoPlayer(_videoController!),
-            )
-          else if (!_isVideo)
-            Image.file(File(_mediaFile!.path),
-                fit: BoxFit.contain, width: double.infinity)
-          else
-            const CircularProgressIndicator(color: Colors.white),
-
-          // Remove Button
-          Positioned(
-            top: 8,
-            right: 8,
-            child: GestureDetector(
-              onTap: () {
-                _videoController?.dispose();
-                _videoController = null;
-                setState(() {
-                  _mediaFile = null;
-                  _isVideo = false;
-                });
-              },
-              child: Container(
-                padding: const EdgeInsets.all(6),
-                decoration: const BoxDecoration(
-                  color: Colors.black54,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(LucideIcons.x, color: Colors.white, size: 16),
-              ),
-            ),
-          )
-        ],
-      ),
-    );
   }
 
   @override
   Widget build(BuildContext context) {
-    if (_step == 2) {
-      return _buildSuccessScreen();
-    }
+    if (_step == 2) return _buildSuccessScreen();
+
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('Report Emergency'),
+        title: Text(themeProvider.t('sos_instructions'), style: const TextStyle(fontSize: 18)),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         leading: IconButton(
           icon: const Icon(LucideIcons.arrowLeft, color: Colors.grey),
-          onPressed: () {
-            if (Navigator.canPop(context)) {
-              Navigator.pop(context);
-            }
-          },
+          onPressed: () => Navigator.pop(context),
         ),
       ),
       body: Column(
@@ -352,189 +197,46 @@ class _ReportScreenState extends State<ReportScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Location Status
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.blue.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(4),
-                          decoration: BoxDecoration(
-                            color: _location != null
-                                ? Colors.blue.shade200
-                                : Colors.grey.shade300,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(LucideIcons.mapPin,
-                              size: 16, color: Colors.blue),
-                        ),
-                        const SizedBox(width: 12),
-                        Text(
-                          _location != null
-                              ? "Location acquired: ${_location!.latitude.toStringAsFixed(4)}, ${_location!.longitude.toStringAsFixed(4)}"
-                              : "Acquiring GPS location...",
-                          style: TextStyle(
-                              color: Colors.blue.shade700, fontSize: 13),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildLocationStatus(isDark),
                   const SizedBox(height: 24),
-
-                  // Media Upload
-                  const Text("Evidence (Photo/Video)",
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF334155))),
+                  _buildSectionTitle("Evidence (Photo/Video)", isDark),
                   const SizedBox(height: 12),
-                  _buildMediaSelectionButtons(),
+                  _buildMediaSelectionButtons(isDark),
                   const SizedBox(height: 16),
-                  _buildMediaPreview(),
+                  _buildMediaPreview(isDark),
                   const SizedBox(height: 24),
-
-                  // Description
-                  const Text("Description",
-                      style: TextStyle(
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF334155))),
+                  _buildSectionTitle("Description", isDark),
                   const SizedBox(height: 8),
-                  TextField(
-                    controller: _descriptionController,
-                    maxLines: 5,
-                    decoration: InputDecoration(
-                      hintText: "Describe the situation...",
-                      filled: true,
-                      fillColor: Colors.white,
-                      suffixIcon: Padding(
-                        padding: const EdgeInsets.all(8.0),
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.end,
-                          children: [
-                            GestureDetector(
-                              onTap: _listen,
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 300),
-                                padding: const EdgeInsets.all(10),
-                                decoration: BoxDecoration(
-                                  color: _isListening ? Colors.red : Colors.grey.shade100,
-                                  shape: BoxShape.circle,
-                                  boxShadow: _isListening ? [
-                                    BoxShadow(color: Colors.red.withOpacity(0.4), blurRadius: 12, spreadRadius: 4)
-                                  ] : [],
-                                ),
-                                child: Icon(
-                                  _isListening ? LucideIcons.mic : LucideIcons.mic,
-                                  color: _isListening ? Colors.white : Colors.grey.shade600,
-                                  size: 20,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
-                      border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      enabledBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: BorderSide(color: Colors.grey.shade300),
-                      ),
-                      focusedBorder: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        borderSide: const BorderSide(
-                            color: Color(0xFFDC2626), width: 2),
-                      ),
-                    ),
-                  ),
-
+                  _buildDescriptionField(isDark),
                   const SizedBox(height: 24),
-                  // Warning
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: Colors.amber.shade50,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Icon(LucideIcons.alertTriangle,
-                            size: 16, color: Colors.amber.shade800),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            "By submitting, you agree to share your current location and media with emergency responders. False reporting is a punishable offense.",
-                            style: TextStyle(
-                                color: Colors.amber.shade800, fontSize: 12),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  _buildWarningCard(isDark),
                 ],
               ),
             ),
           ),
+          _buildSubmitButton(isDark),
+        ],
+      ),
+    );
+  }
 
-          // Submit Button
-          Container(
-            padding: const EdgeInsets.all(16),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade100)),
-            ),
-            child: SizedBox(
-              width: double.infinity,
-              height: 56,
-              child: ElevatedButton(
-                onPressed: (_loading ||
-                        (_descriptionController.text.isEmpty &&
-                            _mediaFile == null))
-                    ? null
-                    : _submitReport,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFFDC2626),
-                  foregroundColor: Colors.white,
-                  shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12)),
-                  elevation: 0,
-                ),
-                child: _loading
-                    ? Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
-                                  color: Colors.white, strokeWidth: 2)),
-                          const SizedBox(width: 12),
-                          Text(
-                              _uploadedMediaUrl == null && _mediaFile != null
-                                  ? "Uploading Media..."
-                                  : (_analyzing
-                                      ? "Analyzing..."
-                                      : "Connecting..."),
-                              style: const TextStyle(
-                                  fontSize: 16, fontWeight: FontWeight.bold)),
-                        ],
-                      )
-                    : const Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(LucideIcons.send),
-                          SizedBox(width: 8),
-                          Text("Request Help",
-                              style: TextStyle(
-                                  fontSize: 18, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-              ),
+  Widget _buildLocationStatus(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          Icon(LucideIcons.mapPin, size: 18, color: Colors.blue.shade600),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              _location != null
+                  ? "Location: ${_location!.latitude.toStringAsFixed(4)}, ${_location!.longitude.toStringAsFixed(4)}"
+                  : "Acquiring GPS location...",
+              style: TextStyle(color: Colors.blue.shade600, fontSize: 13, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -542,131 +244,259 @@ class _ReportScreenState extends State<ReportScreen> {
     );
   }
 
+  Widget _buildSectionTitle(String title, bool isDark) {
+    return Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: isDark ? Colors.white : const Color(0xFF334155)));
+  }
+
+  Widget _buildMediaSelectionButtons(bool isDark) {
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+      children: [
+        _buildMediaOptionIcon(LucideIcons.camera, "Photo", () => _pickMedia(ImageSource.camera, false), isDark),
+        _buildMediaOptionIcon(LucideIcons.image, "Gallery", () => _pickMedia(ImageSource.gallery, false), isDark),
+        _buildMediaOptionIcon(LucideIcons.video, "Video", () => _pickMedia(ImageSource.camera, true), isDark),
+        _buildMediaOptionIcon(LucideIcons.film, "Files", () => _pickMedia(ImageSource.gallery, true), isDark),
+      ],
+    );
+  }
+
+  Widget _buildMediaOptionIcon(IconData icon, String label, VoidCallback onTap, bool isDark) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Column(
+        children: [
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: isDark ? const Color(0xFF1E293B) : Colors.white,
+              shape: BoxShape.circle,
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10)],
+            ),
+            child: Icon(icon, color: isDark ? Colors.white70 : const Color(0xFF334155), size: 20),
+          ),
+          const SizedBox(height: 6),
+          Text(label, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey : const Color(0xFF64748B))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildMediaPreview(bool isDark) {
+    return Container(
+      height: 200,
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.grey.shade50,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+      ),
+      clipBehavior: Clip.hardEdge,
+      child: _mediaFile == null
+          ? const Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(LucideIcons.camera, size: 40, color: Colors.grey),
+                SizedBox(height: 8),
+                Text("Preview Evidence", style: TextStyle(color: Colors.grey, fontSize: 12)),
+              ],
+            )
+          : Stack(
+              fit: StackFit.expand,
+              children: [
+                _isVideo && _videoController != null && _videoController!.value.isInitialized
+                    ? AspectRatio(aspectRatio: _videoController!.value.aspectRatio, child: VideoPlayer(_videoController!))
+                    : Image.file(File(_mediaFile!.path), fit: BoxFit.cover),
+                Positioned(
+                  top: 10, right: 10,
+                  child: IconButton(
+                    style: IconButton.styleFrom(backgroundColor: Colors.black54),
+                    icon: const Icon(LucideIcons.x, color: Colors.white, size: 18),
+                    onPressed: () => setState(() { _mediaFile = null; _videoController?.dispose(); _videoController = null; }),
+                  ),
+                ),
+              ],
+            ),
+    );
+  }
+
+  Widget _buildDescriptionField(bool isDark) {
+    return TextField(
+      controller: _descriptionController,
+      maxLines: 4,
+      style: TextStyle(color: isDark ? Colors.white : Colors.black),
+      decoration: InputDecoration(
+        hintText: "Describe the emergency...",
+        hintStyle: TextStyle(color: isDark ? Colors.white38 : Colors.grey),
+        filled: true,
+        fillColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade300)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade300)),
+        suffixIcon: IconButton(
+          icon: Icon(_isListening ? LucideIcons.mic : LucideIcons.mic, color: _isListening ? Colors.red : Colors.grey),
+          onPressed: _listen,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildWarningCard(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.amber.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(LucideIcons.alertTriangle, size: 16, color: Colors.amber),
+          const SizedBox(width: 8),
+          Expanded(child: Text("False reporting is a punishable offense. Responders will see your location.", style: TextStyle(color: Colors.amber.shade800, fontSize: 12))),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildSubmitButton(bool isDark) {
+    return Container(
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: isDark ? const Color(0xFF0F172A) : Colors.white,
+        border: Border(top: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade100)),
+      ),
+      child: SizedBox(
+        width: double.infinity,
+        height: 56,
+        child: ElevatedButton(
+          onPressed: _loading ? null : _submitReport,
+          style: ElevatedButton.styleFrom(
+            backgroundColor: const Color(0xFFDC2626),
+            foregroundColor: Colors.white,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            elevation: 0,
+          ),
+          child: _analyzing
+            ? const Row(mainAxisAlignment: MainAxisAlignment.center, children: [SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)), SizedBox(width: 12), Text("Analyzing with AI...", style: TextStyle(fontWeight: FontWeight.bold))])
+            : _loading 
+            ? const CircularProgressIndicator(color: Colors.white)
+            : const Text("SEND EMERGENCY REQUEST", style: TextStyle(fontWeight: FontWeight.bold, letterSpacing: 1)),
+        ),
+      ),
+    );
+  }
+
   Widget _buildSuccessScreen() {
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
             children: [
+              const SizedBox(height: 48),
               Container(
-                width: 80,
-                height: 80,
-                decoration: BoxDecoration(
-                  color: Colors.green.shade100,
-                  shape: BoxShape.circle,
-                ),
-                child: const Icon(LucideIcons.checkCircle,
-                    size: 48, color: Colors.green),
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(color: Colors.green.withValues(alpha: 0.1), shape: BoxShape.circle),
+                child: const Icon(LucideIcons.checkCircle, size: 64, color: Colors.green),
               ),
-              const SizedBox(height: 24),
-              const Text(
-                "Responders Notified",
-                style: TextStyle(
-                    fontSize: 24,
-                    fontWeight: FontWeight.bold,
-                    color: Color(0xFF0F172A)),
-              ),
-              const SizedBox(height: 8),
-              const Text(
-                "Help is on the way. Your location and incident details have been broadcast to nearby emergency teams.",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Color(0xFF64748B)),
-              ),
+              const SizedBox(height: 32),
+              const Text("Responders Notified!", style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.green)),
               const SizedBox(height: 16),
-              if (_uploadedMediaUrl != null)
+              const Text(
+                "Your request has been broadcasted. Help is on the way. Stay calm and stay in your current location.",
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 16, height: 1.5, color: Colors.grey),
+              ),
+              const SizedBox(height: 32),
+              if (_aiAnalysis != null) ...[
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  padding: const EdgeInsets.all(24),
                   decoration: BoxDecoration(
-                    color: Colors.blue.shade50,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(LucideIcons.check,
-                          size: 16, color: Colors.blue.shade700),
-                      const SizedBox(width: 8),
-                      Text("Media uploaded securely",
-                          style: TextStyle(
-                              fontSize: 12,
-                              color: Colors.blue.shade700,
-                              fontWeight: FontWeight.w500)),
-                    ],
-                  ),
-                ),
-              const SizedBox(height: 24),
-              if (_aiAnalysis != null)
-                Container(
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: Colors.grey.shade200),
+                    gradient: LinearGradient(
+                      colors: isDark 
+                        ? [const Color(0xFF1E1B4B), const Color(0xFF0F172A)]
+                        : [Colors.purple.shade50, Colors.white],
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                    ),
+                    borderRadius: BorderRadius.circular(20),
+                    border: Border.all(color: isDark ? Colors.purple.withValues(alpha: 0.3) : Colors.purple.shade100, width: 1.5),
                     boxShadow: [
                       BoxShadow(
-                        color: Colors.black.withOpacity(0.05),
-                        blurRadius: 10,
-                        offset: const Offset(0, 4),
+                        color: Colors.purple.withValues(alpha: 0.05),
+                        blurRadius: 15,
+                        offset: const Offset(0, 5),
                       ),
                     ],
                   ),
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Row(
+                      Row(
                         children: [
-                          Icon(LucideIcons.sparkles,
-                              size: 16, color: Colors.purple),
-                          SizedBox(width: 8),
-                          Text("AI Assessment",
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: Colors.purple.withValues(alpha: 0.1),
+                              borderRadius: BorderRadius.circular(10),
+                            ),
+                            child: const Icon(LucideIcons.sparkles, size: 20, color: Colors.purple),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              "AI First Aid Assessment", 
                               style: TextStyle(
-                                  fontWeight: FontWeight.w600,
-                                  color: Color(0xFF0F172A))),
+                                fontWeight: FontWeight.bold, 
+                                fontSize: 18,
+                                color: isDark ? Colors.purple.shade200 : Colors.purple.shade800,
+                              ),
+                            ),
+                          ),
                         ],
                       ),
-                      const SizedBox(height: 8),
+                      const SizedBox(height: 16),
                       Text(
-                        _aiAnalysis!,
-                        style: const TextStyle(
-                            color: Color(0xFF64748B),
-                            fontSize: 13,
-                            height: 1.5),
-                        textAlign: TextAlign.left,
+                        _aiAnalysis!, 
+                        style: TextStyle(
+                          height: 1.6, 
+                          fontSize: 15,
+                          color: isDark ? Colors.white70 : Colors.black87,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              "This summary was sent to the responder. Follow these steps until help arrives.",
+                              style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600, fontStyle: FontStyle.italic),
+                            ),
+                          ),
+                        ],
                       ),
                     ],
                   ),
                 ),
-              const Spacer(),
+              ],
+              const SizedBox(height: 32),
               SizedBox(
                 width: double.infinity,
                 height: 56,
                 child: ElevatedButton(
-                  onPressed: () {
-                    // Reset the form state because this screen is a tab
-                    setState(() {
-                      _step = 1;
-                      _mediaFile = null;
-                      _isVideo = false;
-                      _videoController?.dispose();
-                      _videoController = null;
-                      _descriptionController.clear();
-                      _uploadedMediaUrl = null;
-                      _aiAnalysis = null;
-                    });
-                  },
+                  onPressed: () => Navigator.pop(context),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF0F172A),
                     foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                   ),
-                  child: const Text("Done",
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  child: const Text("I AM SAFE NOW", style: TextStyle(fontWeight: FontWeight.bold)),
                 ),
               ),
+              const SizedBox(height: 16),
             ],
           ),
         ),

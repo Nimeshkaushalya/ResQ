@@ -15,28 +15,17 @@ class AuthService {
   User? get currentUser => _auth.currentUser;
 
   // Generate Unique ID
-  Future<String> _generateUniqueId() async {
+  Future<String> generateUniqueId() async {
     final random = Random();
     String newId = '';
     bool isUnique = false;
 
     while (!isUnique) {
-      // Generate 8 random digits
       int randomNumber = random.nextInt(99999999);
       newId = 'RESQ-${randomNumber.toString().padLeft(8, '0')}';
-
-      // Check if it exists in Firestore
-      final query = await _firestore
-          .collection('users')
-          .where('uniqueId', isEqualTo: newId)
-          .limit(1)
-          .get();
-
-      if (query.docs.isEmpty) {
-        isUnique = true;
-      }
+      final query = await _firestore.collection('users').where('uniqueId', isEqualTo: newId).limit(1).get();
+      if (query.docs.isEmpty) isUnique = true;
     }
-
     return newId;
   }
 
@@ -44,23 +33,18 @@ class AuthService {
   Future<String?> signUp({
     required String email,
     required String password,
-    required String role, // 'user' or 'emergency_responder'
+    required String role,
     required String username,
     required String phoneNumber,
-    String? responderType, // NEW
-    Map<String, String>? documents, // NEW
+    String? responderType,
+    Map<String, String>? documents,
   }) async {
     try {
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      UserCredential result = await _auth.createUserWithEmailAndPassword(email: email, password: password);
       User? user = result.user;
 
-      // Save additional user info to Firestore
       if (user != null) {
-        String uniqueId = await _generateUniqueId();
-
+        String uniqueId = await generateUniqueId();
         Map<String, dynamic> userData = {
           'uid': user.uid,
           'uniqueId': uniqueId,
@@ -69,32 +53,19 @@ class AuthService {
           'username': username,
           'phoneNumber': phoneNumber,
           'createdAt': FieldValue.serverTimestamp(),
+          'verificationStatus': role == 'emergency_responder' ? 'pending' : 'verified',
+          'documentsSubmitted': role == 'emergency_responder' ? true : false,
+          'authMethod': 'email', 
         };
 
-        if (role == 'emergency_responder') {
-          if (responderType != null) {
-            userData['responderType'] = responderType;
-          }
-        }
-
-        if (documents != null) {
-          userData['documents'] = documents;
-        }
-        userData['verificationStatus'] = 'pending';
-        userData['verificationNote'] = '';
+        if (role == 'emergency_responder') userData['responderType'] = responderType;
+        if (documents != null) userData['documents'] = documents;
 
         await _firestore.collection('users').doc(user.uid).set(userData);
-        
-        // Update FCM Token
         await NotificationService().updateToken();
       }
-      return null; // No error
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        return 'The account already exists for that email.';
-      } else if (e.code == 'weak-password') {
-        return 'The password provided is too weak.';
-      }
       return e.message;
     } catch (e) {
       return e.toString();
@@ -110,29 +81,21 @@ class AuthService {
     return const Stream.empty();
   }
 
+  // Send Email Verification
+  Future<void> sendVerificationEmail() async {
+    User? user = _auth.currentUser;
+    if (user != null && !user.emailVerified) {
+      await user.sendEmailVerification();
+    }
+  }
+
   // Sign In
-  Future<String?> signIn({
-    required String email,
-    required String password,
-  }) async {
+  Future<String?> signIn({required String email, required String password}) async {
     try {
-      await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-      
-      // Update FCM Token
+      await _auth.signInWithEmailAndPassword(email: email, password: password);
       await NotificationService().updateToken();
-      
-      return null; // No error
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        return 'No user found for that email.';
-      } else if (e.code == 'wrong-password') {
-        return 'Wrong password provided for that user.';
-      } else if (e.code == 'invalid-credential') {
-        return 'Invalid credentials.';
-      }
       return e.message;
     } catch (e) {
       return e.toString();
@@ -142,7 +105,6 @@ class AuthService {
   // Google Sign In
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
-      // Use the Web Client ID from google-services.json (client_type: 3)
       final GoogleSignInAccount? googleUser = await GoogleSignIn(
         serverClientId: '773245302476-93j4rkud9gq2lfi19qabgnso1vsn2kat.apps.googleusercontent.com',
       ).signIn();
@@ -159,11 +121,8 @@ class AuthService {
 
       if (user != null) {
         final doc = await _firestore.collection('users').doc(user.uid).get();
-        if (!doc.exists) {
-          return {'error': null, 'isNewUser': true, 'user': user};
-        }
-        
-        // Update FCM Token for existing user
+        bool needsRegistration = !doc.exists || !doc.data()!.containsKey('role');
+        if (needsRegistration) return {'error': null, 'isNewUser': true, 'user': user};
         await NotificationService().updateToken();
         return {'error': null, 'isNewUser': false, 'user': user};
       }
@@ -173,32 +132,22 @@ class AuthService {
     }
   }
 
-  // Create Google User Profile
-  Future<String?> createGoogleUserProfile({
-    required User user,
-    required String role,
-  }) async {
+  // Password Reset
+  Future<String?> sendPasswordResetEmail(String email) async {
     try {
-      String uniqueId = await _generateUniqueId();
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'uniqueId': uniqueId,
-        'email': user.email,
-        'role': role,
-        'username': user.displayName ?? 'User',
-        'phoneNumber': user.phoneNumber ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'verificationStatus': 'pending',
-      });
-      
-      // Update FCM Token
-      await NotificationService().updateToken();
+      await _auth.sendPasswordResetEmail(email: email);
       return null;
+    } on FirebaseAuthException catch (e) {
+      return e.message;
     } catch (e) {
       return e.toString();
     }
   }
 
+  // Administrative Deletion
+  Future<void> administrativeDelete(String uid) async {
+    await _firestore.collection('users').doc(uid).delete();
+  }
 
   // Sign Out
   Future<void> signOut() async {
@@ -209,19 +158,14 @@ class AuthService {
   Future<String?> getUserRole() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(user.uid).get();
-      if (doc.exists) {
-        return doc.get('role') as String?;
-      }
+      DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
+      if (doc.exists) return doc.get('role') as String?;
     }
     return null;
   }
 
   // Update User Profile
-  Future<String?> updateUserProfile({
-    required Map<String, dynamic> data,
-  }) async {
+  Future<String?> updateUserProfile({required Map<String, dynamic> data}) async {
     try {
       User? user = _auth.currentUser;
       if (user != null) {

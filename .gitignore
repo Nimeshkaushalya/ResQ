@@ -35,3 +35,10 @@ build/
 /android/app/release
 
 .env
+ 
+# AI Performance Report Files
+generate_ai_report.py
+ResQ_AI_Thesis_Report.docx
+report_assets/
+*.png
+*.docx

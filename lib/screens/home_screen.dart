@@ -2,7 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:provider/provider.dart';
+import 'package:resq_flutter/services/theme_provider.dart';
 import 'package:resq_flutter/services/location_service.dart';
 import 'package:resq_flutter/services/notification_service.dart';
 import 'package:resq_flutter/services/emergency_service.dart';
@@ -69,7 +70,6 @@ class _HomeScreenState extends State<HomeScreen> {
   void _notifyUser(String title, String body, {String type = 'info'}) async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      // 1. Save to Firestore for NotificationsScreen
       await FirebaseFirestore.instance
           .collection('users')
           .doc(user.uid)
@@ -83,7 +83,6 @@ class _HomeScreenState extends State<HomeScreen> {
       });
     }
 
-    // 2. Show push notification
     NotificationService().showLocalNotification(title, body);
   }
 
@@ -120,10 +119,8 @@ class _HomeScreenState extends State<HomeScreen> {
           actions: [
             TextButton(
               onPressed: () async {
-                // Update Emergency Doc
                 await FirebaseFirestore.instance.collection('emergencies').doc(emergencyId).update({'isRated': true, 'rating': selectedRating});
 
-                // Update Responder Rating (Simple average logic)
                 final resDoc = await FirebaseFirestore.instance.collection('users').doc(responderId).get();
                 final currentRating = (resDoc.data()?['rating'] ?? 5.0).toDouble();
                 final totalRatings = (resDoc.data()?['totalRatings'] ?? 0) + 1;
@@ -132,7 +129,7 @@ class _HomeScreenState extends State<HomeScreen> {
                 await FirebaseFirestore.instance.collection('users').doc(responderId).update({
                   'rating': newRating,
                   'totalRatings': totalRatings,
-                  'totalResolved': FieldValue.increment(1), // Real increment
+                  'totalResolved': FieldValue.increment(1),
                 });
 
                 if (context.mounted) Navigator.pop(context);
@@ -145,6 +142,8 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
+  double _selectedRadius = 10.0; // Default 10km
+
   Future<void> _loadNearbyCount() async {
     try {
       final position = await LocationService.getCurrentLocation();
@@ -152,7 +151,7 @@ class _HomeScreenState extends State<HomeScreen> {
         final responders = await LocationService().getRespondersNearby(
           position.latitude,
           position.longitude,
-          10.0,
+          _selectedRadius,
         );
         if (mounted) {
           setState(() {
@@ -168,16 +167,24 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final themeProvider = context.watch<ThemeProvider>();
+    final isDark = themeProvider.isDarkMode;
+
     return Scaffold(
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       appBar: AppBar(
+        centerTitle: true,
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        foregroundColor: isDark ? Colors.white : const Color(0xFF0F172A),
         title: Row(
+          mainAxisSize: MainAxisSize.min,
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             const Icon(LucideIcons.siren, color: Color(0xFFDC2626)),
             const SizedBox(width: 8),
-            Text('ResQ',
+            Text(themeProvider.t('app_title'),
                 style: TextStyle(
-                    color: Theme.of(context).colorScheme.onSurface,
+                    color: isDark ? Colors.white : const Color(0xFF0F172A),
                     fontWeight: FontWeight.bold)),
           ],
         ),
@@ -191,9 +198,8 @@ class _HomeScreenState extends State<HomeScreen> {
                     MaterialPageRoute(builder: (context) => const NotificationsScreen()),
                   );
                 },
-                icon: const Icon(LucideIcons.bell, color: Color(0xFF0F172A)),
+                icon: Icon(LucideIcons.bell, color: isDark ? Colors.white : const Color(0xFF0F172A)),
               ),
-              // Optional: Add a simple badge if there are unread notifications
               StreamBuilder<QuerySnapshot>(
                 stream: FirebaseFirestore.instance
                   .collection('users')
@@ -234,65 +240,60 @@ class _HomeScreenState extends State<HomeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Find Nearby Help Section (Uber Style)
-              _buildNearbyMapBanner(context),
+              _buildNearbyMapBanner(context, isDark),
               const SizedBox(height: 24),
               
-              // Welcome Section
-              const Text(
-                "Are you in an emergency?",
+              Text(
+                themeProvider.t('emergency_question'),
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: Color(0xFF0F172A), // Slate-900
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
               const SizedBox(height: 8),
-              const Text(
-                "Press the SOS button or select an emergency type below.",
-                style: TextStyle(color: Color(0xFF64748B)), // Slate-500
+              Text(
+                themeProvider.t('sos_instruction'),
+                style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B)),
               ),
               const SizedBox(height: 32),
   
-              // SOS Button
-              Center(
+              const Center(
                 child: SOSButton(),
               ),
               const SizedBox(height: 32),
-
-              // Quick Emergency Call Buttons (119 & 1990)
+ 
               Row(
                 children: [
                   Expanded(
                     child: _buildHotlineCard(
-                      "Police", 
+                      themeProvider.t('police'), 
                       "119", 
                       LucideIcons.shieldAlert, 
-                      const Color(0xFF1E3A8A), // Indigo-900
-                      () => _launchCaller("119")
+                      const Color(0xFF1E3A8A), 
+                      () => _launchCaller("119", themeProvider)
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
                     child: _buildHotlineCard(
-                      "Ambulance", 
+                      themeProvider.t('ambulance'), 
                       "1990", 
                       LucideIcons.heart, 
-                      const Color(0xFFDC2626), // Red-600
-                      () => _launchCaller("1990")
+                      const Color(0xFFDC2626), 
+                      () => _launchCaller("1990", themeProvider)
                     ),
                   ),
                 ],
               ),
               const SizedBox(height: 32),
   
-              // Emergency Grid
-              const Text(
-                "Report Incident",
+              Text(
+                themeProvider.t('report_incident'),
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
-                  color: Color(0xFF0F172A),
+                  color: isDark ? Colors.white : const Color(0xFF0F172A),
                 ),
               ),
               const SizedBox(height: 16),
@@ -306,19 +307,18 @@ class _HomeScreenState extends State<HomeScreen> {
                 childAspectRatio: 1.4,
                 children: [
                   _buildEmergencyCard(
-                      context, 'Medical', LucideIcons.stethoscope, Colors.blue),
+                      context, themeProvider.t('medical'), LucideIcons.stethoscope, Colors.blue, isDark),
                   _buildEmergencyCard(
-                      context, 'Fire', LucideIcons.flame, Colors.orange),
+                      context, themeProvider.t('fire'), LucideIcons.flame, Colors.orange, isDark),
                   _buildEmergencyCard(
-                      context, 'Accident', LucideIcons.car, Colors.purple),
+                      context, themeProvider.t('accident'), LucideIcons.car, Colors.purple, isDark),
                   _buildEmergencyCard(
-                      context, 'Crime', LucideIcons.shieldAlert, Colors.red),
+                      context, themeProvider.t('crime'), LucideIcons.shieldAlert, Colors.red, isDark),
                 ],
               ),
               const SizedBox(height: 32),
   
-              // First Aid Guide Button
-              _buildFirstAidBanner(context),
+              _buildFirstAidBanner(context, isDark),
               const SizedBox(height: 16),
             ],
           ),
@@ -337,7 +337,7 @@ class _HomeScreenState extends State<HomeScreen> {
           borderRadius: BorderRadius.circular(16),
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.3),
+              color: color.withValues(alpha: 0.3),
               blurRadius: 8,
               offset: const Offset(0, 4),
             ),
@@ -361,10 +361,9 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Future<void> _launchCaller(String number) async {
+  Future<void> _launchCaller(String number, ThemeProvider themeProvider) async {
     final Uri url = Uri.parse('tel:$number');
     
-    // Safety Confirmation Dialog
     showDialog(
       context: context,
       builder: (BuildContext context) {
@@ -407,72 +406,114 @@ class _HomeScreenState extends State<HomeScreen> {
     );
   }
 
-  Widget _buildNearbyMapBanner(BuildContext context) {
-    return GestureDetector(
-      onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const LiveRespondersMapScreen()),
-        );
-      },
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.all(20),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            colors: [Colors.blue.shade600, Colors.blue.shade800],
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-          ),
-          borderRadius: BorderRadius.circular(16),
-          boxShadow: [
-            BoxShadow(
-              color: Colors.blue.withOpacity(0.3),
-              blurRadius: 12,
-              offset: const Offset(0, 6),
-            ),
-          ],
-        ),
-        child: Row(
-          children: [
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.white.withOpacity(0.2),
-                shape: BoxShape.circle,
+  Widget _buildNearbyMapBanner(BuildContext context, bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        GestureDetector(
+          onTap: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const LiveRespondersMapScreen()),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                colors: isDark 
+                  ? [const Color(0xFF1E293B), const Color(0xFF0F172A)]
+                  : [Colors.blue.shade600, Colors.blue.shade800],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
               ),
-              child: const Icon(LucideIcons.map, color: Colors.white, size: 28),
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.blue.withValues(alpha: 0.3),
+                  blurRadius: 12,
+                  offset: const Offset(0, 6),
+                ),
+              ],
             ),
-            const SizedBox(width: 16),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text(
-                    "Find Nearby Help",
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.white.withValues(alpha: 0.2),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(LucideIcons.map, color: Colors.white, size: 28),
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "Find Nearby Help",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      _isLoadingCount 
+                        ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70))
+                        : Text(
+                            "$_nearbyCount responders active within ${_selectedRadius.toInt()}km",
+                            style: const TextStyle(color: Colors.white70, fontSize: 13),
+                          ),
+                    ],
+                  ),
+                ),
+                const Icon(LucideIcons.chevronRight, color: Colors.white70)
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 12),
+        SingleChildScrollView(
+          scrollDirection: Axis.horizontal,
+          child: Row(
+            children: [5.0, 10.0, 20.0, 50.0].map((r) {
+              bool sel = _selectedRadius == r;
+              return GestureDetector(
+                onTap: () {
+                  setState(() {
+                    _selectedRadius = r;
+                    _isLoadingCount = true;
+                  });
+                  _loadNearbyCount();
+                },
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                  margin: const EdgeInsets.only(right: 8),
+                  decoration: BoxDecoration(
+                    color: sel ? const Color(0xFFDC2626) : (isDark ? const Color(0xFF1E293B) : Colors.white),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: sel ? Colors.transparent : (isDark ? Colors.white10 : Colors.grey.shade300)),
+                  ),
+                  child: Text(
+                    "${r.toInt()}km Range",
                     style: TextStyle(
-                      fontSize: 18,
+                      color: sel ? Colors.white : (isDark ? Colors.white70 : Colors.black87),
                       fontWeight: FontWeight.bold,
-                      color: Colors.white,
+                      fontSize: 12,
                     ),
                   ),
-                  const SizedBox(height: 4),
-                  _isLoadingCount 
-                    ? const SizedBox(height: 14, width: 14, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white70))
-                    : Text(
-                        "$_nearbyCount responders active within 10km",
-                        style: const TextStyle(color: Colors.white70, fontSize: 13),
-                      ),
-                ],
-              ),
-            ),
-            const Icon(LucideIcons.chevronRight, color: Colors.white70)
-          ],
+                ),
+              );
+            }).toList(),
+          ),
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildFirstAidBanner(BuildContext context) {
+  Widget _buildFirstAidBanner(BuildContext context, bool isDark) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -483,12 +524,12 @@ class _HomeScreenState extends State<HomeScreen> {
         width: double.infinity,
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.shade100, width: 2),
+          border: Border.all(color: isDark ? Colors.white10 : Colors.red.shade100, width: 2),
           boxShadow: [
             BoxShadow(
-              color: Colors.red.withOpacity(0.05),
+              color: Colors.red.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -499,18 +540,18 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: const BoxDecoration(
-                color: Color(0xFFDC2626), // red-600
+                color: Color(0xFFDC2626),
                 shape: BoxShape.circle,
               ),
               child: const Icon(LucideIcons.bookOpen,
                   color: Colors.white, size: 28),
             ),
             const SizedBox(width: 16),
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
+                  const Text(
                     "First Aid Guide",
                     style: TextStyle(
                       fontSize: 18,
@@ -518,10 +559,10 @@ class _HomeScreenState extends State<HomeScreen> {
                       color: Color(0xFFDC2626),
                     ),
                   ),
-                  SizedBox(height: 4),
+                  const SizedBox(height: 4),
                   Text(
                     "Step-by-step offline emergency guides",
-                    style: TextStyle(color: Color(0xFF64748B), fontSize: 13),
+                    style: TextStyle(color: isDark ? Colors.grey.shade400 : const Color(0xFF64748B), fontSize: 13),
                   ),
                 ],
               ),
@@ -534,7 +575,7 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Widget _buildEmergencyCard(
-      BuildContext context, String title, IconData icon, Color color) {
+      BuildContext context, String title, IconData icon, Color color, bool isDark) {
     return GestureDetector(
       onTap: () {
         Navigator.of(context).push(
@@ -543,12 +584,12 @@ class _HomeScreenState extends State<HomeScreen> {
       },
       child: Container(
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isDark ? const Color(0xFF0F172A) : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.grey.shade200),
+          border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.05),
+              color: Colors.black.withValues(alpha: 0.05),
               blurRadius: 10,
               offset: const Offset(0, 4),
             ),
@@ -560,7 +601,7 @@ class _HomeScreenState extends State<HomeScreen> {
             Container(
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: color.withOpacity(0.1),
+                color: color.withValues(alpha: 0.1),
                 shape: BoxShape.circle,
               ),
               child: Icon(icon, color: color, size: 32),
@@ -568,9 +609,10 @@ class _HomeScreenState extends State<HomeScreen> {
             const SizedBox(height: 12),
             Text(
               title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontWeight: FontWeight.w600,
                 fontSize: 16,
+                color: isDark ? Colors.white : Colors.black,
               ),
             ),
           ],
@@ -670,7 +712,6 @@ class _SOSButtonState extends State<SOSButton> with SingleTickerProviderStateMix
       child: Stack(
         alignment: Alignment.center,
         children: [
-          // Outer Progress ring
           SizedBox(
             width: 200,
             height: 200,
@@ -686,7 +727,6 @@ class _SOSButtonState extends State<SOSButton> with SingleTickerProviderStateMix
               },
             ),
           ),
-          // Main Button
           Container(
             width: 170,
             height: 170,
@@ -695,7 +735,7 @@ class _SOSButtonState extends State<SOSButton> with SingleTickerProviderStateMix
               shape: BoxShape.circle,
               boxShadow: [
                 BoxShadow(
-                  color: const Color(0xFFDC2626).withOpacity(_isHolding ? 0.5 : 0.3),
+                  color: const Color(0xFFDC2626).withValues(alpha: _isHolding ? 0.5 : 0.3),
                   blurRadius: _isHolding ? 40 : 20,
                   spreadRadius: _isHolding ? 10 : 5,
                 ),

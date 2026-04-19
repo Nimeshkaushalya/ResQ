@@ -3,6 +3,8 @@ import '../../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../login_screen.dart';
+import 'package:resq_flutter/screens/settings_screen.dart';
+import 'package:lucide_icons/lucide_icons.dart';
 
 class AdminProfileScreen extends StatelessWidget {
   const AdminProfileScreen({super.key});
@@ -106,6 +108,15 @@ class AdminProfileScreen extends StatelessWidget {
                   leading: Icon(Icons.description, color: Colors.blueGrey),
                   title: Text('Responsibility'),
                   trailing: Text('Global Verification'),
+                ),
+                const Divider(),
+                ListTile(
+                  leading: const Icon(LucideIcons.settings, color: Colors.blueGrey),
+                  title: const Text('App Settings'),
+                  trailing: const Icon(Icons.chevron_right),
+                  onTap: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                  },
                 ),
                 const Divider(),
                 const Spacer(),

@@ -202,6 +202,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final double? latitude = data['latitude'] ?? (data['location'] != null ? data['location']['latitude'] : null);
     final double? longitude = data['longitude'] ?? (data['location'] != null ? data['location']['longitude'] : null);
     final String status = data['status'] ?? 'pending';
+    final String? aiAnalysis = data['aiAnalysis'];
 
     String timeString = 'Just now';
     if (t != null) {
@@ -295,6 +296,62 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               ),
             ),
             const SizedBox(height: 32),
+
+            if (aiAnalysis != null && aiAnalysis.isNotEmpty) ...[
+              const Text(
+                'AI Situation Assessment',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+              ),
+              const SizedBox(height: 12),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  gradient: LinearGradient(
+                    colors: [Colors.purple.shade50, Colors.white],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(16),
+                  border: Border.all(color: Colors.purple.shade100, width: 1.5),
+                  boxShadow: [
+                    BoxShadow(
+                      color: Colors.purple.withValues(alpha: 0.05),
+                      blurRadius: 10,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(
+                            color: Colors.purple.withValues(alpha: 0.1),
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(LucideIcons.sparkles, size: 20, color: Colors.purple),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          "AI Summary", 
+                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 16),
+                    Text(
+                      aiAnalysis,
+                      style: const TextStyle(fontSize: 15, height: 1.6, color: Colors.black87),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 32),
+            ],
 
             // Media/Images Section
             const Text(

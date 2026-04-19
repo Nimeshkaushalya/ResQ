@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:resq_flutter/services/notification_service.dart';
@@ -11,6 +10,9 @@ import 'package:resq_flutter/services/location_service.dart';
 import 'package:resq_flutter/screens/notifications_screen.dart';
 import 'emergency_requests_screen.dart';
 import 'my_accepted_requests_screen.dart';
+import 'package:provider/provider.dart';
+import 'package:intl/intl.dart';
+import 'package:resq_flutter/services/theme_provider.dart';
 
 class ResponderHomeScreen extends StatefulWidget {
   const ResponderHomeScreen({super.key});
@@ -123,18 +125,21 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
+    final themeProvider = Provider.of<ThemeProvider>(context);
+    final isDark = themeProvider.isDarkMode;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
       appBar: AppBar(
-        title: const Text('ResQ Responder'),
-        backgroundColor: Colors.white,
+        title: Text('ResQ Responder', style: TextStyle(color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.bold)),
+        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+        iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF0F172A)),
         elevation: 0,
         actions: [
           Stack(
             children: [
               IconButton(
-                icon: const Icon(LucideIcons.bell, color: Color(0xFF0F172A)),
+                icon: Icon(LucideIcons.bell, color: isDark ? Colors.white : const Color(0xFF0F172A)),
                 onPressed: () {
                   Navigator.push(
                     context,
@@ -177,7 +182,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildStatusToggle(),
+            _buildStatusToggle(isDark),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -197,7 +202,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(user?.displayName ?? 'Emergency Responder',
-                          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+                          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
                       Row(
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 18),
@@ -211,10 +216,10 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
               ],
             ),
             const SizedBox(height: 24),
-            const Text('Live Incidents Map',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            Text('Live Incidents Map',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
             const SizedBox(height: 12),
-            _buildMiniMap(),
+            _buildMiniMap(isDark),
             const SizedBox(height: 24),
             Row(
               children: [
@@ -224,6 +229,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                     stream: FirebaseFirestore.instance.collection('emergencies').where('status', isEqualTo: 'pending').snapshots(),
                     icon: LucideIcons.alertCircle,
                     color: const Color(0xFFDC2626),
+                    isDark: isDark,
                   ),
                 ),
                 const SizedBox(width: 15),
@@ -236,17 +242,18 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                         .where('status', whereIn: ['accepted', 'on_the_way', 'arrived']).snapshots(),
                     icon: LucideIcons.activity,
                     color: const Color(0xFF2563EB),
+                    isDark: isDark,
                   ),
                 ),
               ],
             ),
             const SizedBox(height: 24),
-            const Text('Recent Activity',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            Text('Recent Activity',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
             const SizedBox(height: 12),
-            _buildRecentActivity(user?.uid),
+            _buildRecentActivity(user?.uid, isDark),
             const SizedBox(height: 24),
-            const Text('Operations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+            Text('Operations', style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: isDark ? Colors.white : const Color(0xFF0F172A))),
             const SizedBox(height: 12),
             _buildActionTile(
               'Emergency Queue',
@@ -254,6 +261,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
               LucideIcons.listTodo,
               const Color(0xFFDC2626),
               () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen())),
+              isDark
             ),
             const SizedBox(height: 10),
             _buildActionTile(
@@ -262,6 +270,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
               LucideIcons.activity,
               const Color(0xFF2563EB),
               () => Navigator.push(context, MaterialPageRoute(builder: (context) => const MyAcceptedRequestsScreen())),
+              isDark
             ),
             const SizedBox(height: 40),
           ],
@@ -270,13 +279,13 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
     );
   }
 
-  Widget _buildStatusToggle() {
+  Widget _buildStatusToggle(bool isDark) {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
       decoration: BoxDecoration(
-        color: _isOnline ? const Color(0xFF059669) : Colors.grey.shade800,
+        color: _isOnline ? const Color(0xFF059669) : (isDark ? const Color(0xFF1E293B) : Colors.grey.shade800),
         borderRadius: BorderRadius.circular(20),
-        boxShadow: [BoxShadow(color: (_isOnline ? const Color(0xFF059669) : Colors.black).withOpacity(0.2), blurRadius: 10, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: (_isOnline ? const Color(0xFF059669) : Colors.black).withValues(alpha: 0.2), blurRadius: 10, offset: const Offset(0, 4))],
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -305,51 +314,118 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
     );
   }
 
-  Widget _buildMiniMap() {
-    return Container(
-      height: 180,
-      decoration: BoxDecoration(borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(19),
-        child: StreamBuilder<QuerySnapshot>(
-          stream: FirebaseFirestore.instance.collection('emergencies').where('status', isEqualTo: 'pending').snapshots(),
-          builder: (context, snapshot) {
-            List<Marker> markers = [];
-            if (snapshot.hasData) {
-              for (var doc in snapshot.data!.docs) {
-                final data = doc.data() as Map<String, dynamic>;
-                if (data['latitude'] != null) {
-                  markers.add(Marker(
-                    point: LatLng(data['latitude'], data['longitude']),
-                    child: const Icon(LucideIcons.alertTriangle, color: Colors.red, size: 20),
-                  ));
-                }
-              }
-            }
-            return FlutterMap(
-              mapController: _miniMapController,
-              options: MapOptions(center: _lastKnownPos, zoom: 12, interactiveFlags: InteractiveFlag.none),
-              children: [
-                TileLayer(
-                  urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-                  userAgentPackageName: 'com.example.resq_flutter',
+  double _selectedRadius = 10.0; // Default 10km
+
+  Widget _buildMiniMap(bool isDark) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Stack(
+          children: [
+            Container(
+              height: 250,
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(24), 
+                border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 15, offset: const Offset(0, 5))],
+              ),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(23),
+                child: StreamBuilder<QuerySnapshot>(
+                  stream: FirebaseFirestore.instance.collection('emergencies').where('status', isEqualTo: 'pending').snapshots(),
+                  builder: (context, snapshot) {
+                    List<Marker> markers = [];
+                    if (snapshot.hasData) {
+                      const Distance distance = Distance();
+                      for (var doc in snapshot.data!.docs) {
+                        final data = doc.data() as Map<String, dynamic>;
+                        if (data['latitude'] != null && data['longitude'] != null) {
+                          final LatLng incidentPos = LatLng(data['latitude'], data['longitude']);
+                          final double km = distance.as(LengthUnit.Kilometer, _lastKnownPos, incidentPos);
+                          
+                          if (km <= _selectedRadius) {
+                            markers.add(Marker(
+                              point: incidentPos,
+                              width: 40, height: 40,
+                              child: GestureDetector(
+                                onTap: () => Navigator.push(context, MaterialPageRoute(builder: (context) => const EmergencyRequestsScreen())),
+                                child: Icon(LucideIcons.alertTriangle, color: (data['emergencyType'] == 'SOS') ? Colors.red : Colors.orange, size: 24),
+                              ),
+                            ));
+                          }
+                        }
+                      }
+                    }
+                    return FlutterMap(
+                      mapController: _miniMapController,
+                      options: MapOptions(initialCenter: _lastKnownPos, initialZoom: _selectedRadius <= 5 ? 13 : (_selectedRadius <= 15 ? 11 : 10)),
+                      children: [
+                        TileLayer(urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png', userAgentPackageName: 'com.example.resq_flutter'),
+                        CircleLayer(
+                          circles: [
+                            CircleMarker(
+                              point: _lastKnownPos,
+                              radius: _selectedRadius * 1000, // Convert km to meters
+                              useRadiusInMeter: true,
+                              color: Colors.blue.withValues(alpha: 0.1),
+                              borderColor: Colors.blue.withValues(alpha: 0.3),
+                              borderStrokeWidth: 2,
+                            ),
+                          ],
+                        ),
+                        MarkerLayer(markers: [
+                          Marker(point: _lastKnownPos, width: 40, height: 40, child: Container(decoration: BoxDecoration(color: Colors.blue.withValues(alpha: 0.2), shape: BoxShape.circle), child: const Icon(LucideIcons.navigation, color: Colors.blue, size: 20))),
+                          ...markers,
+                        ]),
+                      ],
+                    );
+                  },
                 ),
-                MarkerLayer(markers: [
-                  Marker(point: _lastKnownPos, child: const Icon(LucideIcons.navigation, color: Colors.blue, size: 20)),
-                  ...markers,
-                ]),
-              ],
-            );
-          },
+              ),
+            ),
+            // Radius Selection Overlay
+            Positioned(
+              top: 12,
+              right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                decoration: BoxDecoration(
+                  color: (isDark ? Colors.black87 : Colors.white).withValues(alpha: 0.8),
+                  borderRadius: BorderRadius.circular(16),
+                  boxShadow: [BoxShadow(color: Colors.black12, blurRadius: 4)],
+                  border: Border.all(color: isDark ? Colors.white10 : Colors.transparent),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [5.0, 10.0, 20.0, 50.0].map((r) {
+                    bool sel = _selectedRadius == r;
+                    return GestureDetector(
+                      onTap: () => setState(() => _selectedRadius = r),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        margin: const EdgeInsets.symmetric(horizontal: 2),
+                        decoration: BoxDecoration(
+                          color: sel ? const Color(0xFFDC2626) : Colors.transparent,
+                          borderRadius: BorderRadius.circular(10),
+                        ),
+                        child: Text("${r.toInt()}km", 
+                          style: TextStyle(color: sel ? Colors.white : (isDark ? Colors.white70 : Colors.black87), fontSize: 11, fontWeight: FontWeight.bold)),
+                      ),
+                    );
+                  }).toList(),
+                ),
+              ),
+            ),
+          ],
         ),
-      ),
+      ],
     );
   }
 
-  Widget _buildStatCard({required String title, required Stream<QuerySnapshot> stream, required IconData icon, required Color color}) {
+  Widget _buildStatCard({required String title, required Stream<QuerySnapshot> stream, required IconData icon, required Color color, required bool isDark}) {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: Colors.grey.shade200)),
+      decoration: BoxDecoration(color: isDark ? const Color(0xFF0F172A) : Colors.white, borderRadius: BorderRadius.circular(20), border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -361,7 +437,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                 stream: stream,
                 builder: (context, snapshot) {
                   final count = snapshot.data?.docs.length ?? 0;
-                  return Text(count.toString(), style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold));
+                  return Text(count.toString(), style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black));
                 },
               ),
             ],
@@ -373,7 +449,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
     );
   }
 
-  Widget _buildRecentActivity(String? responderId) {
+  Widget _buildRecentActivity(String? responderId, bool isDark) {
     if (responderId == null) return const SizedBox();
 
     return StreamBuilder<QuerySnapshot>(
@@ -395,9 +471,9 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
           return Container(
             padding: const EdgeInsets.all(20),
             decoration: BoxDecoration(
-              color: Colors.white,
+              color: isDark ? const Color(0xFF0F172A) : Colors.white,
               borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.grey.shade200),
+              border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade200),
             ),
             child: const Center(
               child: Text('No recent activity to show', style: TextStyle(color: Colors.grey)),
@@ -410,21 +486,26 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
             final data = doc.data() as Map<String, dynamic>;
             final type = data['emergencyType'] ?? 'Emergency';
             final address = data['address'] ?? 'Unknown location';
+            final Timestamp? t = data['createdAt'];
+            String timeString = 'Just now';
+            if (t != null) {
+              timeString = DateFormat('MMM d, h:mm a').format(t.toDate());
+            }
             
             return Container(
               margin: const EdgeInsets.only(bottom: 10),
               padding: const EdgeInsets.all(12),
               decoration: BoxDecoration(
-                color: Colors.white,
+                color: isDark ? const Color(0xFF0F172A) : Colors.white,
                 borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: Colors.grey.shade100),
+                border: Border.all(color: isDark ? Colors.white10 : Colors.grey.shade100),
               ),
               child: Row(
                 children: [
                   Container(
                     padding: const EdgeInsets.all(8),
                     decoration: BoxDecoration(
-                      color: Colors.green.withOpacity(0.1),
+                      color: Colors.green.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(LucideIcons.checkCircle, color: Colors.green, size: 20),
@@ -434,7 +515,13 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(type, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            Text(type, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: isDark ? Colors.white : Colors.black)),
+                            Text(timeString, style: TextStyle(fontSize: 10, color: Colors.grey.shade500)),
+                          ],
+                        ),
                         Text(address, 
                              maxLines: 1, 
                              overflow: TextOverflow.ellipsis,
@@ -442,7 +529,6 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                       ],
                     ),
                   ),
-                  const Icon(LucideIcons.chevronRight, size: 16, color: Colors.grey),
                 ],
               ),
             );
@@ -452,15 +538,15 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
     );
   }
 
-  Widget _buildActionTile(String title, String subtitle, IconData icon, Color color, VoidCallback onTap) {
+  Widget _buildActionTile(String title, String subtitle, IconData icon, Color color, VoidCallback onTap, bool isDark) {
     return ListTile(
       onTap: onTap,
-      tileColor: Colors.white,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: Colors.grey.shade200)),
-      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color)),
-      title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-      subtitle: Text(subtitle, style: const TextStyle(fontSize: 12)),
-      trailing: const Icon(LucideIcons.chevronRight, size: 18),
+      tileColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(15), side: BorderSide(color: isDark ? Colors.white10 : Colors.grey.shade200)),
+      leading: Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withValues(alpha: 0.1), borderRadius: BorderRadius.circular(10)), child: Icon(icon, color: color)),
+      title: Text(title, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15, color: isDark ? Colors.white : Colors.black)),
+      subtitle: Text(subtitle, style: TextStyle(fontSize: 12, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
+      trailing: Icon(LucideIcons.chevronRight, size: 18, color: isDark ? Colors.grey : Colors.grey.shade700),
     );
   }
 }

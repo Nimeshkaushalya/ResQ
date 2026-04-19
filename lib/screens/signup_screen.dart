@@ -77,7 +77,6 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _signup() async {
-    // Validation
     if (_nicFrontImage == null || _nicBackImage == null) {
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please upload both sides of your ID')));
       return;
@@ -92,7 +91,6 @@ class _SignupScreenState extends State<SignupScreen> {
     Map<String, String> uploadedDocs = {};
 
     try {
-      // Upload Images
       String? nicFrontUrl = await _cloudinaryService.uploadImage(_nicFrontImage!);
       String? nicBackUrl = await _cloudinaryService.uploadImage(_nicBackImage!);
       
@@ -129,7 +127,8 @@ class _SignupScreenState extends State<SignupScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully!')));
-        Navigator.pop(context);
+        // Force navigate to root and clear stack to trigger AuthWrapper refresh
+        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
       }
     }
   }
@@ -139,86 +138,87 @@ class _SignupScreenState extends State<SignupScreen> {
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
-        child: Column(
-          children: [
-            // Custom Header
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => Navigator.pop(context),
-                    icon: const Icon(LucideIcons.arrowLeft, color: Color(0xFF0F172A)),
-                  ),
-                  const Expanded(
-                    child: Text(
-                      'Create Account',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              // Custom Header
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                child: Row(
+                  children: [
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: const Icon(LucideIcons.arrowLeft, color: Color(0xFF0F172A)),
                     ),
-                  ),
-                  const SizedBox(width: 48), // Equalizer
-                ],
+                    const Expanded(
+                      child: Text(
+                        'Create Account',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                      ),
+                    ),
+                    const SizedBox(width: 48),
+                  ],
+                ),
               ),
-            ),
 
-            // Progress Bar
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
-              child: Row(
-                children: [
-                  _buildProgressDot(0),
-                  _buildProgressLine(0),
-                  _buildProgressDot(1),
-                  _buildProgressLine(1),
-                  _buildProgressDot(2),
-                ],
+              // Progress Bar
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 12),
+                child: Row(
+                  children: [
+                    _buildProgressDot(0),
+                    _buildProgressLine(0),
+                    _buildProgressDot(1),
+                    _buildProgressLine(1),
+                    _buildProgressDot(2),
+                  ],
+                ),
               ),
-            ),
 
-            Expanded(
-              child: SingleChildScrollView(
+              Padding(
                 padding: const EdgeInsets.all(24),
                 child: _buildCurrentStep(),
               ),
-            ),
 
-            // Bottom Actions
-            Padding(
-              padding: const EdgeInsets.all(24),
-              child: Row(
-                children: [
-                  if (_currentStep > 0)
-                    Expanded(
-                      child: OutlinedButton(
-                        onPressed: _isLoading ? null : () => setState(() => _currentStep--),
-                        style: OutlinedButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          side: BorderSide(color: Colors.grey.shade300),
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              // Bottom Actions
+              Padding(
+                padding: const EdgeInsets.all(24),
+                child: Row(
+                  children: [
+                    if (_currentStep > 0)
+                      Expanded(
+                        child: OutlinedButton(
+                          onPressed: _isLoading ? null : () => setState(() => _currentStep--),
+                          style: OutlinedButton.styleFrom(
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            side: BorderSide(color: Colors.grey.shade300),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          ),
+                          child: const Text('Back', style: TextStyle(color: Color(0xFF0F172A))),
                         ),
-                        child: const Text('Back', style: TextStyle(color: Color(0xFF0F172A))),
+                      ),
+                    if (_currentStep > 0) const SizedBox(width: 16),
+                    Expanded(
+                      child: ElevatedButton(
+                        onPressed: _isLoading ? null : _handleContinue,
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: const Color(0xFFDC2626),
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                          elevation: 0,
+                        ),
+                        child: _isLoading 
+                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                          : Text(_currentStep == 2 ? 'Finish' : 'Continue', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                       ),
                     ),
-                  if (_currentStep > 0) const SizedBox(width: 16),
-                  Expanded(
-                    child: ElevatedButton(
-                      onPressed: _isLoading ? null : _handleContinue,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFFDC2626),
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                        elevation: 0,
-                      ),
-                      child: _isLoading 
-                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
-                        : Text(_currentStep == 2 ? 'Finish' : 'Continue', style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -333,12 +333,12 @@ class _SignupScreenState extends State<SignupScreen> {
         const SizedBox(height: 8),
         Text("Upload documents to verify your identity", style: TextStyle(color: Colors.grey.shade600)),
         const SizedBox(height: 32),
-        _buildUploadCard('National ID / License Front', _nicFrontImage, () => _showPicker(context, 'nicFront')),
+        _buildUploadCard('National ID / License Front', _nicFrontImage, 'nicFront'),
         const SizedBox(height: 16),
-        _buildUploadCard('National ID / License Back', _nicBackImage, () => _showPicker(context, 'nicBack')),
+        _buildUploadCard('National ID / License Back', _nicBackImage, 'nicBack'),
         if (_selectedRole == 'emergency_responder') ...[
           const SizedBox(height: 16),
-          _buildUploadCard('Service Certificate', _certImage, () => _showPicker(context, 'cert')),
+          _buildUploadCard('Service Certificate', _certImage, 'cert'),
         ],
       ],
     );
@@ -354,7 +354,7 @@ class _SignupScreenState extends State<SignupScreen> {
         duration: const Duration(milliseconds: 200),
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: isSelected ? color.withOpacity(0.05) : Colors.white,
+          color: isSelected ? color.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: isSelected ? color : Colors.grey.shade200, width: 2),
         ),
@@ -403,15 +403,15 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildUploadCard(String label, File? file, VoidCallback onTap) {
+  Widget _buildUploadCard(String label, File? file, String type) {
     return InkWell(
-      onTap: onTap,
+      onTap: () => _showPicker(context, type),
       borderRadius: BorderRadius.circular(12),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: file != null ? Colors.green.withOpacity(0.05) : Colors.white,
+          color: file != null ? Colors.green.withValues(alpha: 0.05) : Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: file != null ? Colors.green : Colors.grey.shade300, style: file != null ? BorderStyle.solid : BorderStyle.none),
         ),

@@ -22,7 +22,7 @@ class LiveRespondersMapScreen extends StatefulWidget {
 class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
   final MapController _mapController = MapController();
   final LocationService _locationService = LocationService();
-  final double _radiusKm = 10.0;
+  double _radiusKm = 10.0;
   
   Position? _currentPosition;
   List<ResponderWithDistance> _nearbyResponders = [];
@@ -49,6 +49,15 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
     _respondersStream?.cancel();
     _mapController.dispose();
     super.dispose();
+  }
+
+  void _updateRadius(double newRadius) {
+    setState(() {
+      _radiusKm = newRadius;
+      _isLoading = true;
+    });
+    _respondersStream?.cancel();
+    _initLocation(isUpdate: true);
   }
 
   Future<void> _loadStaticFacilities() async {
@@ -81,8 +90,14 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
     }
   }
 
-  Future<void> _initLocation() async {
-    final position = await LocationService.getCurrentLocation();
+  Future<void> _initLocation({bool isUpdate = false}) async {
+    Position? position;
+    if (isUpdate) {
+       position = _currentPosition;
+    } else {
+       position = await LocationService.getCurrentLocation();
+    }
+
     if (position != null) {
       if (mounted) {
         setState(() {
@@ -104,23 +119,25 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
            }
         });
         
-        // Listen for user location changes
-        _positionStream = Geolocator.getPositionStream(
-          locationSettings: const LocationSettings(
-            accuracy: LocationAccuracy.high,
-            distanceFilter: 10,
-          ),
-        ).listen((pos) {
-          if (mounted) {
-            setState(() {
-              _currentPosition = pos;
-            });
-            if (!_hasMovedToInitialLocation && _isMapReady) {
-              _mapController.move(LatLng(pos.latitude, pos.longitude), 14.0);
-              _hasMovedToInitialLocation = true;
+        if (!isUpdate) {
+          // Listen for user location changes
+          _positionStream = Geolocator.getPositionStream(
+            locationSettings: const LocationSettings(
+              accuracy: LocationAccuracy.high,
+              distanceFilter: 10,
+            ),
+          ).listen((pos) {
+            if (mounted) {
+              setState(() {
+                _currentPosition = pos;
+              });
+              if (!_hasMovedToInitialLocation && _isMapReady) {
+                _mapController.move(LatLng(pos.latitude, pos.longitude), 14.0);
+                _hasMovedToInitialLocation = true;
+              }
             }
-          }
-        });
+          });
+        }
       }
     } else {
       if (mounted) setState(() => _isLoading = false);
@@ -351,18 +368,44 @@ class _LiveRespondersMapScreenState extends State<LiveRespondersMapScreen> {
                   top: 16,
                   left: 16,
                   right: 16,
-                  child: SingleChildScrollView(
-                    scrollDirection: Axis.horizontal,
-                    child: Row(
-                      children: [
-                        _buildFilterChip('all', 'All'),
-                        _buildFilterChip('ambulance', 'Ambulance'),
-                        _buildFilterChip('police', 'Police'),
-                        _buildFilterChip('fire', 'Fire'),
-                        _buildFilterChip('hospital', 'Hospitals'),
-                        _buildFilterChip('volunteer', 'Volunteer'),
-                      ],
-                    ),
+                  child: Column(
+                    children: [
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [5.0, 10.0, 20.0, 50.0].map((r) {
+                            bool sel = _radiusKm == r;
+                            return Padding(
+                              padding: const EdgeInsets.only(right: 8),
+                              child: ChoiceChip(
+                                label: Text("${r.toInt()}km Range"),
+                                selected: sel,
+                                onSelected: (_) => _updateRadius(r),
+                                selectedColor: const Color(0xFFDC2626).withOpacity(0.2),
+                                labelStyle: TextStyle(
+                                  color: sel ? const Color(0xFFDC2626) : Colors.black87,
+                                  fontWeight: sel ? FontWeight.bold : FontWeight.normal,
+                                ),
+                              ),
+                            );
+                          }).toList(),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                      SingleChildScrollView(
+                        scrollDirection: Axis.horizontal,
+                        child: Row(
+                          children: [
+                            _buildFilterChip('all', 'All Services'),
+                            _buildFilterChip('ambulance', 'Ambulance'),
+                            _buildFilterChip('police', 'Police'),
+                            _buildFilterChip('fire', 'Fire'),
+                            _buildFilterChip('hospital', 'Hospitals'),
+                            _buildFilterChip('volunteer', 'Volunteer'),
+                          ],
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 

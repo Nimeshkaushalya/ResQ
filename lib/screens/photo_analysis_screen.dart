@@ -11,6 +11,7 @@ import 'package:resq_flutter/services/connectivity_service.dart';
 import 'package:resq_flutter/services/offline_ai_service.dart';
 import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:resq_flutter/services/ai_metrics_service.dart';
 
 class PhotoAnalysisScreen extends StatefulWidget {
   const PhotoAnalysisScreen({super.key});
@@ -34,6 +35,11 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   final TextEditingController _chatController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
   bool _isSending = false;
+  
+  // AI Metrics
+  final AIMetricsService _metricsService = AIMetricsService();
+  bool _hasEvaluated = false;
+  bool _isSubmittingEvaluation = false;
 
   final List<String> _hints = [
     'Unknown', 'Burn', 'Bleeding', 'Fracture', 'Animal Bite', 'Allergic Reaction', 'Head Injury'
@@ -70,6 +76,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
         _imageFile = File(pickedFile.path);
         _analysisResult = null;
         _isChatMode = false;
+        _hasEvaluated = false;
         _chatService?.clearChat();
       });
     }
@@ -157,6 +164,55 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
     );
   }
 
+  Future<void> _submitEvaluation(bool isAccurate) async {
+    if (_analysisResult == null) return;
+    
+    setState(() {
+      _isSubmittingEvaluation = true;
+    });
+
+    try {
+      // Very basic parsing for demo - extract confidence
+      double confidence = 0.8; // default
+      final confidenceMatch = RegExp(r'\*\*CONFIDENCE\*\*:\s*(\d+)%').firstMatch(_analysisResult!);
+      if (confidenceMatch != null) {
+        confidence = double.parse(confidenceMatch.group(1)!) / 100.0;
+      }
+
+      // Assumption: if they get a result and the analysis didn't fail, it predicted *something*.
+      // We assume if it found a severity, it predicted an injury.
+      bool predictedAnomalous = _analysisResult!.contains('**SEVERITY**');
+      
+      await _metricsService.saveEvaluation(
+        isActualEmergency: isAccurate ? predictedAnomalous : !predictedAnomalous,
+        isGeminiPredicted: predictedAnomalous,
+        geminiConfidence: confidence,
+      );
+
+      setState(() {
+        _hasEvaluated = true;
+      });
+      
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Thank you! Feedback recorded for AI Metrics.')),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed to submit evaluation: $e')),
+        );
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSubmittingEvaluation = false;
+        });
+      }
+    }
+  }
+
   void _shareChat() {
     if (_chatService == null) return;
     final history = _chatService!.chatHistory.map((m) => 
@@ -190,6 +246,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
       ),
       body: Column(
         children: [
+          if (_isChatMode && !_hasEvaluated) _buildEvaluationBanner(),
           Expanded(
             child: _isChatMode ? _buildChatUI() : _buildSelectionUI(),
           ),
@@ -467,6 +524,49 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
             ),
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildEvaluationBanner() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEFF6FF),
+        border: Border(bottom: BorderSide(color: Colors.blue.shade100)),
+      ),
+      child: Row(
+        children: [
+          const Expanded(
+            child: Text(
+              'Help improve ResQ AI! Was this analysis accurate?',
+              style: TextStyle(color: Color(0xFF1E3A8A), fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+          if (_isSubmittingEvaluation)
+            const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(strokeWidth: 2))
+          else ...[
+            TextButton(
+              onPressed: () => _submitEvaluation(false),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.red,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 32),
+              ),
+              child: const Text('No ❌', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+            const SizedBox(width: 8),
+            TextButton(
+              onPressed: () => _submitEvaluation(true),
+              style: TextButton.styleFrom(
+                foregroundColor: Colors.green,
+                padding: const EdgeInsets.symmetric(horizontal: 8),
+                minimumSize: const Size(0, 32),
+              ),
+              child: const Text('Yes ✅', style: TextStyle(fontWeight: FontWeight.bold)),
+            ),
+          ]
+        ],
       ),
     );
   }

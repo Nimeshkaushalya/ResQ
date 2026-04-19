@@ -57,14 +57,18 @@ class NotificationService {
       }
 
       // 6. Listen for Auth Changes to update token
-      FirebaseAuth.instance.authStateChanges().listen((User? user) {
+      FirebaseAuth.instance.authStateChanges().listen((User? user) async {
         if (user != null) {
-          updateToken();
+          // Check if user doc exists before updating token to avoid creating skeleton docs
+          final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+          if (doc.exists) {
+            updateToken();
+          }
         }
       });
 
-      // Initial token update attempt
-      await updateToken();
+      // Initial token update attempt - Don't await this so it doesn't block startup offline
+      updateToken();
     } catch (e) {
       debugPrint("Notification Initialization Failed: $e");
     }
@@ -77,10 +81,10 @@ class NotificationService {
         String? token = await _fcm.getToken();
         if (token != null) {
           print('DEBUG: Updating FCM Token in Firestore for user: ${user.uid}');
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
             'fcmToken': token,
             'lastUpdated': FieldValue.serverTimestamp(),
-          }, SetOptions(merge: true));
+          });
         }
       }
     } catch (e) {

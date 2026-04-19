@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:resq_flutter/screens/notifications_screen.dart';
+import 'package:resq_flutter/screens/admin/ai_metrics_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -174,6 +175,22 @@ class AdminDashboardScreen extends StatelessWidget {
                     trailing: const Icon(Icons.chevron_right),
                     onTap: () {
                    
+                    },
+                  ),
+                  const Divider(),
+                  ListTile(
+                    leading: const CircleAvatar(
+                      backgroundColor: Colors.purple,
+                      child: Icon(LucideIcons.brain, color: Colors.white),
+                    ),
+                    title: const Text('AI Performance Metrics'),
+                    subtitle: const Text('View Accuracy, Precision, and user feedback logs'),
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(builder: (_) => const AIMetricsScreen()),
+                      );
                     },
                   ),
                 ],

@@ -4,6 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import '../../services/auth_service.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
+import 'package:resq_flutter/screens/settings_screen.dart';
+
 class ResponderProfileScreen extends StatelessWidget {
   const ResponderProfileScreen({super.key});
 
@@ -89,7 +91,7 @@ class ResponderProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, 4))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha:0.05), blurRadius: 10, offset: const Offset(0, 4))],
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
@@ -110,6 +112,13 @@ class ResponderProfileScreen extends StatelessWidget {
                   _buildInfoTile(LucideIcons.mail, 'Email', email),
                   _buildInfoTile(LucideIcons.phone, 'Phone', phoneNumber),
                   _buildInfoTile(LucideIcons.shieldCheck, 'Verification', status.toUpperCase()),
+                  
+                  const SizedBox(height: 24),
+
+                  // App Settings
+                  _buildAccountActionTile(LucideIcons.settings, 'App Settings', () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => const SettingsScreen()));
+                  }),
                   
                   const SizedBox(height: 32),
 
@@ -136,6 +145,23 @@ class ResponderProfileScreen extends StatelessWidget {
           }
           return const Center(child: Text("User data not found"));
         },
+      ),
+    );
+  }
+
+  Widget _buildAccountActionTile(IconData icon, String label, VoidCallback onTap) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: Colors.grey.shade100),
+      ),
+      child: ListTile(
+        onTap: onTap,
+        leading: Icon(icon, size: 20, color: const Color(0xFF334155)),
+        title: Text(label, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 16)),
+        trailing: const Icon(LucideIcons.chevronRight, size: 16),
       ),
     );
   }
