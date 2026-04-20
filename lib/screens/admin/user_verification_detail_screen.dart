@@ -136,13 +136,18 @@ class _UserVerificationDetailScreenState extends State<UserVerificationDetailScr
       body: StreamBuilder<DocumentSnapshot>(
         stream: FirebaseFirestore.instance.collection('users').doc(widget.userId).snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-          final data = snapshot.data!.data() as Map<String, dynamic>;
+          if (snapshot.hasError) return const Center(child: Text('Error loading user.'));
+          if (!snapshot.hasData || !snapshot.data!.exists) {
+            return const Center(child: Text('User document not found or deleted.'));
+          }
+
+          final data = snapshot.data!.data() as Map<String, dynamic>?;
+          if (data == null) return const Center(child: Text('User data is empty.'));
           
-          final String name = data['username'] ?? 'No Name';
-          final String role = data['role'] ?? 'user';
-          final String email = data['email'] ?? 'No Email';
-          final String phone = data['phoneNumber'] ?? 'No Phone';
+          final String name = data['username']?.toString() ?? 'No Name';
+          final String role = data['role']?.toString() ?? 'user';
+          final String email = data['email']?.toString() ?? 'No Email';
+          final String phone = data['phoneNumber']?.toString() ?? 'No Phone';
 
           return SingleChildScrollView(
             padding: const EdgeInsets.all(20),

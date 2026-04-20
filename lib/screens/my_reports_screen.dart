@@ -28,26 +28,36 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final isDark = themeProvider.isDarkMode;
 
-    return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
-      appBar: AppBar(
-        title: Text(
-          'My Emergency Logs',
-          style: TextStyle(
-            fontWeight: FontWeight.w900,
-            color: isDark ? Colors.white : const Color(0xFF0F172A),
-            letterSpacing: 0.5,
+    return DefaultTabController(
+      length: 3,
+      child: Scaffold(
+        backgroundColor: isDark ? const Color(0xFF020617) : const Color(0xFFF8FAFC),
+        appBar: AppBar(
+          title: Text(
+            'My Emergency Logs',
+            style: TextStyle(
+              fontWeight: FontWeight.w900,
+              color: isDark ? Colors.white : const Color(0xFF0F172A),
+              letterSpacing: 0.5,
+            ),
+          ),
+          backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
+          iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF0F172A)),
+          elevation: 0,
+          centerTitle: true,
+          bottom: TabBar(
+            indicatorColor: const Color(0xFFDC2626),
+            labelColor: const Color(0xFFDC2626),
+            unselectedLabelColor: Colors.grey,
+            labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+            tabs: [
+              Tab(icon: Icon(LucideIcons.hourglass, size: 20), text: 'Pending'),
+              Tab(icon: Icon(LucideIcons.siren, size: 20), text: 'Active'),
+              Tab(icon: Icon(LucideIcons.checkCircle, size: 20), text: 'History'),
+            ],
           ),
         ),
-        backgroundColor: isDark ? const Color(0xFF0F172A) : Colors.white,
-        iconTheme: IconThemeData(color: isDark ? Colors.white : const Color(0xFF0F172A)),
-        elevation: 0,
-        centerTitle: true,
-      ),
-      body: RefreshIndicator(
-        onRefresh: _refreshReports,
-        color: const Color(0xFFDC2626),
-        child: StreamBuilder<QuerySnapshot>(
+        body: StreamBuilder<QuerySnapshot>(
           stream: _emergencyService.getMyReports(),
           builder: (context, snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
@@ -55,74 +65,30 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
             }
 
             if (snapshot.hasError) {
-              return Center(child: Text('Error: ${snapshot.error}', style: TextStyle(color: isDark ? Colors.white : Colors.black)));
+              return Center(child: Text('Error: ${snapshot.error}'));
             }
 
-            if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-              return ListView(
-                physics: const AlwaysScrollableScrollPhysics(),
-                children: [
-                  SizedBox(height: MediaQuery.of(context).size.height * 0.3),
-                  Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(24),
-                          decoration: BoxDecoration(
-                            color: isDark ? const Color(0xFF1E293B) : Colors.grey.shade200,
-                            shape: BoxShape.circle,
-                          ),
-                          child: Icon(LucideIcons.folderOpen, size: 64, color: isDark ? Colors.grey.shade600 : Colors.grey.shade400),
-                        ),
-                        const SizedBox(height: 24),
-                        Text('No reports found', style: TextStyle(fontSize: 22, color: isDark ? Colors.white : const Color(0xFF0F172A), fontWeight: FontWeight.w800)),
-                        const SizedBox(height: 8),
-                        Text('Your emergency reports will appear here.', style: TextStyle(fontSize: 14, color: isDark ? Colors.grey.shade400 : Colors.grey.shade600)),
-                      ],
-                    ),
-                  ),
-                ],
-              );
-            }
-
-            // Client-side Custom Categorization and Sorting
             final docs = snapshot.data!.docs;
-            List<QueryDocumentSnapshot> activeDocs = [];
-            List<QueryDocumentSnapshot> pendingDocs = [];
-            List<QueryDocumentSnapshot> resolvedDocs = [];
+            List<QueryDocumentSnapshot> pending = [];
+            List<QueryDocumentSnapshot> active = [];
+            List<QueryDocumentSnapshot> history = [];
 
             for (var doc in docs) {
               final status = (doc.data() as Map<String, dynamic>)['status'] ?? 'pending';
               if (status == 'pending') {
-                pendingDocs.add(doc);
+                pending.add(doc);
               } else if (status == 'resolved' || status == 'completed') {
-                resolvedDocs.add(doc);
+                history.add(doc);
               } else {
-                // accepted, on_the_way, arrived
-                activeDocs.add(doc);
+                active.add(doc);
               }
             }
 
-            return ListView(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
-              physics: const AlwaysScrollableScrollPhysics(),
+            return TabBarView(
               children: [
-                if (activeDocs.isNotEmpty) ...[
-                  _buildSectionHeader('Active Responses (Help is coming)', LucideIcons.siren, Colors.blue, isDark),
-                  ...activeDocs.map((doc) => _buildReportCard(doc, isDark, true)),
-                  const SizedBox(height: 24),
-                ],
-                if (pendingDocs.isNotEmpty) ...[
-                  _buildSectionHeader('Pending Logs', LucideIcons.hourglass, Colors.orange, isDark),
-                  ...pendingDocs.map((doc) => _buildReportCard(doc, isDark, false)),
-                  const SizedBox(height: 24),
-                ],
-                if (resolvedDocs.isNotEmpty) ...[
-                  _buildSectionHeader('Past History', LucideIcons.checkCircle, Colors.green, isDark),
-                  ...resolvedDocs.map((doc) => _buildReportCard(doc, isDark, false)),
-                  const SizedBox(height: 24),
-                ],
+                _buildLogsList(pending, isDark, false, 'No pending signals'),
+                _buildLogsList(active, isDark, true, 'No active responses'),
+                _buildLogsList(history, isDark, false, 'No history found'),
               ],
             );
           },
@@ -131,23 +97,27 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     );
   }
 
-  Widget _buildSectionHeader(String title, IconData icon, Color color, bool isDark) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 16, left: 8),
-      child: Row(
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 8),
-          Text(
-            title,
-            style: TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w900,
-              color: isDark ? Colors.white : const Color(0xFF0F172A),
-              letterSpacing: 0.5,
-            ),
-          ),
-        ],
+  Widget _buildLogsList(List<QueryDocumentSnapshot> reports, bool isDark, bool isActive, String emptyMsg) {
+    if (reports.isEmpty) {
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(LucideIcons.folderOpen, size: 48, color: Colors.grey.shade400),
+            const SizedBox(height: 16),
+            Text(emptyMsg, style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.bold)),
+          ],
+        ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: _refreshReports,
+      color: const Color(0xFFDC2626),
+      child: ListView.builder(
+        padding: const EdgeInsets.all(16),
+        itemCount: reports.length,
+        itemBuilder: (context, index) => _buildReportCard(reports[index], isDark, isActive),
       ),
     );
   }

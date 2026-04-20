@@ -25,7 +25,8 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
   StreamSubscription<QuerySnapshot>? _emergenciesSubscription;
   bool _isInit = true;
   bool _isOnline = false;
-  double _rating = 4.8; 
+  double _rating = 0.0;
+  int _totalRatings = 0; 
   LatLng _lastKnownPos = const LatLng(6.9271, 79.8612); 
   final MapController _miniMapController = MapController();
 
@@ -64,7 +65,8 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
       if (mounted) {
         setState(() {
           _isOnline = doc.data()?['isOnline'] ?? false;
-          _rating = (doc.data()?['rating'] ?? 4.8).toDouble();
+          _rating = (doc.data()?['rating'] ?? 0.0).toDouble();
+          _totalRatings = doc.data()?['totalRatings'] ?? 0;
         });
       }
     }
@@ -207,7 +209,12 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                         children: [
                           const Icon(Icons.star, color: Colors.amber, size: 18),
                           const SizedBox(width: 4),
-                          Text('$_rating Rating', style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)),
+                          Text(
+                            _totalRatings > 0 
+                                ? '${_rating.toStringAsFixed(1)} ($_totalRatings Reviews)' 
+                                : 'New (No Ratings)', 
+                            style: TextStyle(color: Colors.grey.shade600, fontWeight: FontWeight.w500)
+                          ),
                         ],
                       ),
                     ],
@@ -226,7 +233,11 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
                 Expanded(
                   child: _buildStatCard(
                     title: 'Pending',
-                    stream: FirebaseFirestore.instance.collection('emergencies').where('status', isEqualTo: 'pending').snapshots(),
+                    stream: FirebaseFirestore.instance
+                        .collection('emergencies')
+                        .where('status', isEqualTo: 'pending')
+                        .where('createdAt', isGreaterThan: Timestamp.fromDate(DateTime.now().subtract(const Duration(hours: 12))))
+                        .snapshots(),
                     icon: LucideIcons.alertCircle,
                     color: const Color(0xFFDC2626),
                     isDark: isDark,

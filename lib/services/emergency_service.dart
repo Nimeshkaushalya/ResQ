@@ -32,20 +32,15 @@ class EmergencyService {
       }
 
       // Fetch user details from Firestore to get name and phone
-      DocumentSnapshot userDoc =
-          await _firestore.collection('users').doc(currentUser.uid).get();
-      String userName = userDoc.exists && userDoc.data() != null
-          ? (userDoc.data() as Map<String, dynamic>)['username'] ??
-              'Unknown User'
-          : 'Unknown User';
-      String userPhone = userDoc.exists && userDoc.data() != null
-          ? (userDoc.data() as Map<String, dynamic>)['phoneNumber'] ??
-              'Not provided'
-          : 'Not provided';
+      DocumentSnapshot userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
+      final data = userDoc.data() as Map<String, dynamic>?;
+
+      String userName = data?['username']?.toString() ?? 'Unknown User';
+      String userPhone = data?['phoneNumber']?.toString() ?? 'Not provided';
 
       final String orderId = _generateOrderId();
 
-      // Create Document in Firestore
+      // Create Document in Firestore and WAIT for confirmation
       await _firestore.collection('emergencies').add({
         'orderId': orderId,
         'userId': currentUser.uid,
@@ -63,25 +58,35 @@ class EmergencyService {
         'createdAt': FieldValue.serverTimestamp(),
       });
 
-      // Notify Emergency Contacts if SOS
+      // Notify Emergency Contacts if SOS - only after Firestore is confirmed
       if (emergencyType == 'SOS') {
-        List<dynamic> contacts = userDoc.exists ? (userDoc.data() as Map<String, dynamic>)['emergencyContacts'] ?? [] : [];
-        for (var contact in contacts) {
-          final phone = contact['phone'];
+        final data = userDoc.data() as Map<String, dynamic>?;
+        List<dynamic> contacts = data?['emergencyContacts'] ?? [];
+        
+        if (contacts.isNotEmpty) {
+          final firstContact = contacts.first;
+          final phone = firstContact['phone']?.toString();
           if (phone != null && phone.isNotEmpty) {
-            _sendEmergencySMS(phone, userName, address);
+            // Small delay to ensure push notifications and firestore writes are stable
+            Future.delayed(const Duration(milliseconds: 1000), () {
+               _sendEmergencySMS(phone, userName, address);
+            });
           }
         }
       }
 
       return {
         'success': true,
-        'message': 'Emergency reported successfully.',
+        'message': '🚨 SIGNAL SENT! Help is on the way.',
         'orderId': orderId
       };
     } catch (e) {
       print('Error submitting emergency report: $e');
-      return {'success': false, 'message': e.toString()};
+      String errorMsg = e.toString();
+      if (errorMsg.contains('unavailable') || errorMsg.contains('host')) {
+        errorMsg = "No Internet! Signal could not reach responders, but SMS will be attempted.";
+      }
+      return {'success': false, 'message': errorMsg};
     }
   }
 

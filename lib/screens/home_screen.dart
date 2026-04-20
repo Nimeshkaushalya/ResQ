@@ -674,7 +674,7 @@ class _SOSButtonState extends State<SOSButton> with SingleTickerProviderStateMix
         address: address ?? 'Unknown Location',
         mediaUrls: [],
       );
-      
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

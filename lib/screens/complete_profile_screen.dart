@@ -18,8 +18,16 @@ class CompleteProfileScreen extends StatefulWidget {
 }
 
 class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
+  final _nameController = TextEditingController();
   final _phoneController = TextEditingController();
   final _formKey = GlobalKey<FormState>();
+
+  @override
+  void initState() {
+    super.initState();
+    _nameController.text = widget.user.displayName ?? '';
+  }
+
   String _selectedRole = 'user';
   File? _nicFront, _nicBack;
   List<File> _certificates = [];
@@ -89,7 +97,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
       await FirebaseFirestore.instance.collection('users').doc(widget.user.uid).set({
         'uid': widget.user.uid,
         'uniqueId': uniqueId,
-        'username': widget.user.displayName ?? 'Google User',
+        'username': _nameController.text.trim(),
         'email': widget.user.email,
         'phoneNumber': _phoneController.text.trim(),
         'role': _selectedRole,
@@ -170,6 +178,21 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
                 ],
               ),
               const SizedBox(height: 24),
+
+              // Full Name Field
+              TextFormField(
+                controller: _nameController,
+                decoration: InputDecoration(
+                  labelText: 'Full Name',
+                  prefixIcon: const Icon(LucideIcons.user, color: Color(0xFFDC2626)),
+                  filled: true,
+                  fillColor: Colors.white,
+                  border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                  contentPadding: const EdgeInsets.all(20),
+                ),
+                validator: (v) => v!.isEmpty ? 'Name is required' : null,
+              ),
+              const SizedBox(height: 16),
 
               TextFormField(
                 controller: _phoneController,

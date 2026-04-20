@@ -45,7 +45,8 @@ class _AllUsersScreenState extends State<AllUsersScreen>
     List<QueryDocumentSnapshot> filteredList = allDocs;
     if (filterRole != 'all') {
       filteredList = filteredList.where((doc) {
-        final role = (doc.data() as Map<String, dynamic>)['role'] ?? 'user';
+        final data = doc.data() as Map<String, dynamic>?;
+        final role = data?['role']?.toString() ?? 'user';
         return role == filterRole;
       }).toList();
     }
@@ -54,7 +55,9 @@ class _AllUsersScreenState extends State<AllUsersScreen>
     if (_searchQuery.isNotEmpty) {
       final queryLower = _searchQuery.toLowerCase();
       filteredList = filteredList.where((doc) {
-        final data = doc.data() as Map<String, dynamic>;
+        final data = doc.data() as Map<String, dynamic>?;
+        if (data == null) return false;
+
         final name = (data['username'] ?? '').toString().toLowerCase();
         final email = (data['email'] ?? '').toString().toLowerCase();
         final uniqueId = (data['uniqueId'] ?? '').toString().toLowerCase();
@@ -79,14 +82,15 @@ class _AllUsersScreenState extends State<AllUsersScreen>
       itemCount: filteredList.length,
       itemBuilder: (context, index) {
         final userDoc = filteredList[index];
-        final data = userDoc.data() as Map<String, dynamic>;
-        
-        final String name = data['username'] ?? 'Unknown User';
-        final String email = data['email'] ?? 'No Email';
-        final String uniqueId = data['uniqueId'] ?? 'No ID';
-        final String role = data['role'] ?? 'user';
-        final String status = data['verificationStatus'] ?? 'approved';
-        final String? responderType = data['responderType'];
+        final data = userDoc.data() as Map<String, dynamic>?;
+        if (data == null) return const SizedBox.shrink();
+
+        final String name = data['username']?.toString() ?? 'Unknown User';
+        final String email = data['email']?.toString() ?? 'No Email';
+        final String uniqueId = data['uniqueId']?.toString() ?? 'No ID';
+        final String role = data['role']?.toString() ?? 'user';
+        final String status = data['verificationStatus']?.toString() ?? 'approved';
+        final String? responderType = data['responderType']?.toString();
         
         // Skip rendering admin roles in the main directory unless explicitly searched
         if (role == 'admin') return const SizedBox.shrink();

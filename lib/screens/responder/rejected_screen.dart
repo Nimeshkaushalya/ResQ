@@ -57,9 +57,14 @@ class _RejectedScreenState extends State<RejectedScreen> {
         future: FirebaseFirestore.instance.collection('users').doc(user?.uid).get(),
         builder: (context, snapshot) {
           String rejectionReason = "No specific reason provided by administrator.";
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
           if (snapshot.hasData && snapshot.data!.exists) {
-            final data = snapshot.data!.data() as Map<String, dynamic>;
-            rejectionReason = data['verificationNote'] ?? rejectionReason;
+            final data = snapshot.data!.data() as Map<String, dynamic>?;
+            if (data != null) {
+              rejectionReason = data['verificationNote'] ?? rejectionReason;
+            }
           }
 
           return Center(

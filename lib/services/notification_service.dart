@@ -81,10 +81,10 @@ class NotificationService {
         String? token = await _fcm.getToken();
         if (token != null) {
           print('DEBUG: Updating FCM Token in Firestore for user: ${user.uid}');
-          await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+          await FirebaseFirestore.instance.collection('users').doc(user.uid).set({
             'fcmToken': token,
             'lastUpdated': FieldValue.serverTimestamp(),
-          });
+          }, SetOptions(merge: true));
         }
       }
     } catch (e) {

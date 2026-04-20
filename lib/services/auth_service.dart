@@ -53,8 +53,8 @@ class AuthService {
           'username': username,
           'phoneNumber': phoneNumber,
           'createdAt': FieldValue.serverTimestamp(),
-          'verificationStatus': role == 'emergency_responder' ? 'pending' : 'verified',
-          'documentsSubmitted': role == 'emergency_responder' ? true : false,
+          'verificationStatus': 'pending', 
+          'documentsSubmitted': true, 
           'authMethod': 'email', 
         };
 

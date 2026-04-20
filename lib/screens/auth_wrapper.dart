@@ -48,19 +48,23 @@ class UserStatusRouter extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
+        if (snapshot.hasError) {
+          return Scaffold(body: Center(child: Text("Error: ${snapshot.error}")));
+        }
+
+        if (!snapshot.hasData || snapshot.data == null) {
           return const Scaffold(body: Center(child: CircularProgressIndicator()));
         }
 
-        final data = snapshot.data?.data() as Map<String, dynamic>?;
+        final data = snapshot.data!.data() as Map<String, dynamic>?;
 
         // 1. Initial State: No document or missing role -> Send to Complete Profile
         if (data == null || data['role'] == null) {
           return CompleteProfileScreen(user: user);
         }
 
-        final String role = data['role'] ?? 'user';
-        final String status = data['verificationStatus'] ?? 'pending';
+        final String role = data['role']?.toString() ?? 'user';
+        final String status = data['verificationStatus']?.toString() ?? 'pending';
 
         // 2. Admin Logic (Admins bypass verification)
         if (role == 'admin') return const AdminMainScaffold();
