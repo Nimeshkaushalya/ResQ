@@ -97,13 +97,13 @@ class AdminDashboardScreen extends StatelessWidget {
                  final bool isOnline = data['isOnline'] ?? false;
                  
                  if (status == 'rejected') rejectedUsers++;
+                 if (status == 'pending') pendingApprovals++;
 
                  if (role == 'user') {
                    totalUsers++;
                  } else if (role == 'emergency_responder') {
                    totalResponders++;
                    if (isOnline) onlineResponders++;
-                   if (status == 'pending') pendingApprovals++;
                  }
               }
 

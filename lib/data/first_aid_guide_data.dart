@@ -61,7 +61,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Remove any clothing or jewelry that is near the burnt area of skin, including babies\' nappies, but DO NOT move anything that is stuck to the skin.',
-        imagePath: 'assets/images/first_aid/burn_step3.png',
+        imagePath: 'assets/images/first_aid/FirstAid-Burns-infographic.png',
       ),
       FirstAidStep(
         instruction:
@@ -93,12 +93,12 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Press it: Apply direct pressure to the wound with your hands ideally over a clean dressing or cloth.',
-        imagePath: 'assets/images/first_aid/bleeding_step1.png',
+        imagePath: 'assets/images/first_aid/w1.png',
       ),
       FirstAidStep(
         instruction:
             'Call EMS: Call emergency services or get a helper to do it. Continue applying pressure.',
-        imagePath: 'assets/images/first_aid/bleeding_step2.png',
+        imagePath: 'assets/images/first_aid/w2.png',
       ),
       FirstAidStep(
         instruction:
@@ -130,16 +130,17 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Encourage them to cough. If the blockage is partial, coughing is the most effective way to clear it.',
+        imagePath: 'assets/images/first_aid/3.png',
       ),
       FirstAidStep(
         instruction:
             'If coughing doesn\'t work, give up to 5 back blows. Lean them forward and firmly strike them between the shoulder blades with the heel of your hand.',
-        imagePath: 'assets/images/first_aid/choking_step1.png',
+        imagePath: 'assets/images/first_aid/1.png',
       ),
       FirstAidStep(
         instruction:
             'If back blows fail, give up to 5 abdominal thrusts (Heimlich maneuver). Stand behind them, link your hands between their belly button and bottom of chest, and pull sharply inwards and upwards.',
-        imagePath: 'assets/images/first_aid/choking_step2.png',
+        imagePath: 'assets/images/first_aid/2.png',
       ),
       FirstAidStep(
         instruction:
@@ -166,10 +167,12 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Check for danger, then check for a response. Gently shake their shoulders and ask loudly, "Are you alright?"',
+        imagePath: 'assets/images/first_aid/cr1.png',
       ),
       FirstAidStep(
         instruction:
             'If there is no response, open the airway. Tilt their head back and lift their chin.',
+        imagePath: 'assets/images/first_aid/cr2.png',
       ),
       FirstAidStep(
         instruction:
@@ -178,12 +181,12 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Start CPR. Place the heel of one hand in the centre of their chest, interlock the other, and give 30 chest compressions at a rate of 100-120 per minute.',
-        imagePath: 'assets/images/first_aid/cpr_step1.png',
+        imagePath: 'assets/images/first_aid/cr3.png',
       ),
       FirstAidStep(
         instruction:
             'Give 2 rescue breaths (optional if untrained/uncomfortable). Pinch their nose, seal your mouth over theirs, and blow steadily for 1 second until the chest rises.',
-        imagePath: 'assets/images/first_aid/cpr_step2.png',
+        imagePath: 'assets/images/first_aid/cr4.png',
       ),
       FirstAidStep(
         instruction:
@@ -211,6 +214,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Advise the person to keep the injured limb still. Support the joints above and below the injury with your hands or padding.',
+        imagePath: 'assets/images/first_aid/fracture_step1.png',
       ),
       FirstAidStep(
         instruction:
@@ -245,6 +249,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Ensure the scene is safe. Move away from the snake but DO NOT try to catch or kill it.',
+        imagePath: 'assets/images/first_aid/snake_step1.png',
       ),
       FirstAidStep(
         instruction:
@@ -281,10 +286,12 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Turn off the source of electricity if possible (unplug the appliance or turn off the mains).',
+        imagePath: 'assets/images/first_aid/e1.png',
       ),
       FirstAidStep(
         instruction:
             'If you cannot turn off the supply, push the person away from the source using a dry, non-conducting object like a wooden broom handle.',
+        imagePath: 'assets/images/first_aid/e2.png',
       ),
       FirstAidStep(
         instruction:
@@ -323,6 +330,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Make the person comfortable. The best position is sitting on the floor, with their head and shoulders supported and their knees bent (the W position) to ease strain on the heart.',
+        imagePath: 'assets/images/first_aid/heartattack_step1.png',
       ),
       FirstAidStep(
         instruction:
@@ -359,6 +367,7 @@ final List<FirstAidCategory> firstAidDatabase = [
       FirstAidStep(
         instruction:
             'Use the F.A.S.T. test:\nFace - Has their face fallen on one side? Can they smile?\nArms - Can they raise both arms and keep them there?\nSpeech - Is their speech slurred?\nTime - Time to call EMS immediately if you see any single one of these signs.',
+        imagePath: 'assets/images/first_aid/f1.png',
       ),
       FirstAidStep(
         instruction: 'Call EMS immediately and tell them "Stroke".',

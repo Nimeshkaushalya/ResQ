@@ -48,17 +48,20 @@ class UserStatusRouter extends StatelessWidget {
     return StreamBuilder<DocumentSnapshot>(
       stream: FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots(),
       builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(body: Center(child: CircularProgressIndicator(color: Color(0xFFDC2626))));
+        }
+
         if (snapshot.hasError) {
           return Scaffold(body: Center(child: Text("Error: ${snapshot.error}")));
         }
 
-        if (!snapshot.hasData || snapshot.data == null) {
-          return const Scaffold(body: Center(child: CircularProgressIndicator()));
+        if (!snapshot.hasData || !snapshot.data!.exists) {
+           return CompleteProfileScreen(user: user);
         }
 
         final data = snapshot.data!.data() as Map<String, dynamic>?;
 
-        // 1. Initial State: No document or missing role -> Send to Complete Profile
         if (data == null || data['role'] == null) {
           return CompleteProfileScreen(user: user);
         }
@@ -66,23 +69,16 @@ class UserStatusRouter extends StatelessWidget {
         final String role = data['role']?.toString() ?? 'user';
         final String status = data['verificationStatus']?.toString() ?? 'pending';
 
-        // 2. Admin Logic (Admins bypass verification)
+        // Admin Logic
         if (role == 'admin') return const AdminMainScaffold();
 
-        // 3. Status Check (Strict: only 'approved' can enter)
+        // User/Responder Logic
         if (status == 'approved') {
-          if (role == 'emergency_responder') {
-            return const ResponderMainScaffold();
-          }
-          return const MainScaffold();
+          return (role == 'emergency_responder') ? const ResponderMainScaffold() : const MainScaffold();
         } 
         
-        // 4. Handle Rejected State
-        if (status == 'rejected') {
-          return const RejectedScreen();
-        }
+        if (status == 'rejected') return const RejectedScreen();
 
-        // 5. Default: If status is 'pending' or anything else, show Pending screen
         return const PendingApprovalScreen();
       },
     );

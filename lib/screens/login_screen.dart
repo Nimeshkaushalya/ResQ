@@ -33,6 +33,13 @@ class _LoginScreenState extends State<LoginScreen> {
       setState(() => _isLoading = false);
       if (error != null) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      } else {
+        // Successfully logged in. 
+        // Force the UI to refresh by popping and going back to the root '/'
+        // This ensures the AuthWrapper's StreamBuilder immediately updates the route.
+        if (mounted) {
+          Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        }
       }
     }
   }

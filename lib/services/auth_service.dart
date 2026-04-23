@@ -61,7 +61,12 @@ class AuthService {
         if (role == 'emergency_responder') userData['responderType'] = responderType;
         if (documents != null) userData['documents'] = documents;
 
+        // Atomic write to Firestore
         await _firestore.collection('users').doc(user.uid).set(userData);
+        
+        // Wait a slight moment for Firestore replication/indexing
+        await Future.delayed(const Duration(milliseconds: 500));
+        
         await NotificationService().updateToken();
       }
       return null;
