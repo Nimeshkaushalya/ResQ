@@ -26,9 +26,9 @@ class EmergencyLogsScreen extends StatelessWidget {
         ),
         body: const TabBarView(
           children: [
-            EmergencyList(status: 'pending'),
-            EmergencyList(status: 'accepted'),
-            EmergencyList(status: 'resolved'),
+            EmergencyList(statusGroup: 'pending'),
+            EmergencyList(statusGroup: 'active'),
+            EmergencyList(statusGroup: 'archive'),
           ],
         ),
       ),
@@ -37,17 +37,37 @@ class EmergencyLogsScreen extends StatelessWidget {
 }
 
 class EmergencyList extends StatelessWidget {
-  final String status;
-  const EmergencyList({super.key, required this.status});
+  final String statusGroup;
+  const EmergencyList({super.key, required this.statusGroup});
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('emergencies')
-          .where('status', isEqualTo: status)
-          .orderBy('createdAt', descending: true)
-          .snapshots(),
+        final now = DateTime.now();
+        final twelveHoursAgo = now.subtract(const Duration(hours: 12));
+        
+        List<String> statuses = [];
+        if (statusGroup == 'pending') {
+          statuses = ['pending'];
+        } else if (statusGroup == 'active') {
+          statuses = ['accepted', 'on_the_way', 'arrived'];
+        } else {
+          statuses = ['resolved', 'completed', 'cancelled'];
+        }
+
+        Query query = FirebaseFirestore.instance.collection('emergencies')
+            .where('status', whereIn: statuses);
+            
+        // Filter by time
+        if (statusGroup == 'pending' || statusGroup == 'active') {
+          query = query.where('createdAt', isGreaterThan: Timestamp.fromDate(twelveHoursAgo));
+        } else {
+          // Archive shows items up to 30 days old
+          final thirtyDaysAgo = now.subtract(const Duration(days: 30));
+          query = query.where('createdAt', isGreaterThan: Timestamp.fromDate(thirtyDaysAgo));
+        }
+        
+        return StreamBuilder<QuerySnapshot>(
+          stream: query.orderBy('createdAt', descending: true).snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
           return Center(child: Text('Error: ${snapshot.error}'));
@@ -87,10 +107,20 @@ class EmergencyList extends StatelessWidget {
                 ? DateFormat('MMM d, hh:mm a').format(time.toDate()) 
                 : 'Unknown time';
 
+            final String currentStatus = data['status'] ?? 'pending';
+
             Color statusColor;
-            switch(status) {
+            switch(currentStatus) {
               case 'pending': statusColor = Colors.red; break;
-              case 'accepted': statusColor = Colors.orange; break;
+              case 'accepted': 
+              case 'on_the_way':
+              case 'arrived':
+                statusColor = Colors.blue; break;
+              case 'resolved':
+              case 'completed':
+                statusColor = Colors.green; break;
+              case 'cancelled':
+                statusColor = Colors.grey; break;
               default: statusColor = Colors.blueGrey;
             }
 
@@ -129,12 +159,23 @@ class EmergencyList extends StatelessWidget {
                         Expanded(child: Text(address, style: const TextStyle(fontSize: 12), overflow: TextOverflow.ellipsis)),
                       ],
                     ),
-                    if (status == 'accepted') ...[
+                    if (statusGroup == 'active') ...[
                       const SizedBox(height: 8),
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
-                        child: Text('Responder heading to scene', style: TextStyle(fontSize: 11, color: Colors.orange.shade900, fontWeight: FontWeight.bold)),
+                        decoration: BoxDecoration(
+                          color: currentStatus == 'arrived' ? Colors.green.shade50 : Colors.blue.shade50, 
+                          borderRadius: BorderRadius.circular(8)
+                        ),
+                        child: Text(
+                          currentStatus == 'accepted' ? 'Responder heading to scene' : 
+                          currentStatus == 'on_the_way' ? 'Responder is on the way' : 'Responder has arrived',
+                          style: TextStyle(
+                            fontSize: 11, 
+                            color: currentStatus == 'arrived' ? Colors.green.shade900 : Colors.blue.shade900, 
+                            fontWeight: FontWeight.bold
+                          )
+                        ),
                       ),
                     ]
                   ],

@@ -113,8 +113,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
         if (newStatus == 'resolved') 'resolvedAt': FieldValue.serverTimestamp(),
       });
 
-      // If status is resolved, increment the responder's totalResolved count
-      if (newStatus == 'resolved') {
+      // If status is resolved or completed, increment the responder's totalResolved count
+      if (newStatus == 'resolved' || newStatus == 'completed') {
         await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
           'totalResolved': FieldValue.increment(1),
         });

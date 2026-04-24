@@ -120,9 +120,17 @@ class AdminDashboardScreen extends StatelessWidget {
                 final status = data['status']?.toString() ?? 'pending';
                 final Timestamp? createdAt = data['createdAt'] as Timestamp?;
 
-                // Active = not resolved and not completed
+                // Active = not resolved, not completed, and within last 12 hours
                 if (status != 'resolved' && status != 'completed') {
-                  activeEmergencies++;
+                  if (createdAt != null) {
+                    final emTime = createdAt.toDate();
+                    final difference = now.difference(emTime).inHours;
+                    if (difference < 12) {
+                      activeEmergencies++;
+                    }
+                  } else {
+                    activeEmergencies++;
+                  }
                 }
 
                 // Today's check

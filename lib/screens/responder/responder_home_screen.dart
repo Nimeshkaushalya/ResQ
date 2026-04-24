@@ -33,7 +33,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
   @override
   void initState() {
     super.initState();
-    _fetchStatus();
+    _setupStatusListener();
     _setupEmergencyListener();
     _updateLocation();
   }
@@ -58,17 +58,18 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
     }
   }
 
-  void _fetchStatus() async {
+  void _setupStatusListener() {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) {
-      final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
-      if (mounted) {
-        setState(() {
-          _isOnline = doc.data()?['isOnline'] ?? false;
-          _rating = (doc.data()?['rating'] ?? 0.0).toDouble();
-          _totalRatings = doc.data()?['totalRatings'] ?? 0;
-        });
-      }
+      FirebaseFirestore.instance.collection('users').doc(user.uid).snapshots().listen((doc) {
+        if (doc.exists && mounted) {
+          setState(() {
+            _isOnline = doc.data()?['isOnline'] ?? false;
+            _rating = (doc.data()?['rating'] ?? 0.0).toDouble();
+            _totalRatings = doc.data()?['totalRatings'] ?? 0;
+          });
+        }
+      });
     }
   }
 
@@ -467,7 +468,7 @@ class _ResponderHomeScreenState extends State<ResponderHomeScreen> {
       stream: FirebaseFirestore.instance
           .collection('emergencies')
           .where('responderId', isEqualTo: responderId)
-          .where('status', isEqualTo: 'resolved')
+          .where('status', whereIn: ['resolved', 'completed'])
           .orderBy('createdAt', descending: true)
           .limit(3)
           .snapshots(),

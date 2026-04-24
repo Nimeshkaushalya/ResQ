@@ -89,7 +89,13 @@ class AIMetricsService {
     } catch (e) {
       print('Error calculating metrics: $e');
       return {
-        "Total Data": 'Error',
+        "Total Data": 0,
+        "Accuracy": "Error",
+        "Precision": "Error",
+        "Recall": "Error",
+        "F1-Score": "Error",
+        "Log Loss": "Error",
+        "ROC AUC": "Error",
       };
     }
   }

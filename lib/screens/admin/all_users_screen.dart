@@ -41,8 +41,13 @@ class _AllUsersScreenState extends State<AllUsersScreen>
   }
 
   Widget _buildUserList(List<QueryDocumentSnapshot> allDocs, String filterRole) {
-    // 1. Filter by tab role
-    List<QueryDocumentSnapshot> filteredList = allDocs;
+    // 1. Filter by status (Exclude Rejected) and then by role
+    List<QueryDocumentSnapshot> filteredList = allDocs.where((doc) {
+      final data = doc.data() as Map<String, dynamic>?;
+      final status = data?['verificationStatus']?.toString() ?? 'approved';
+      return status != 'rejected';
+    }).toList();
+
     if (filterRole != 'all') {
       filteredList = filteredList.where((doc) {
         final data = doc.data() as Map<String, dynamic>?;

@@ -23,6 +23,144 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
     setState(() {});
   }
 
+  void _showRatingDialog(String emergencyId, String? responderName) {
+    double currentRating = 5;
+    final TextEditingController commentController = TextEditingController();
+
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        backgroundColor: Theme.of(context).cardColor,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+        title: Column(
+          children: [
+            const Icon(LucideIcons.award, color: Color(0xFFF59E0B), size: 48),
+            const SizedBox(height: 16),
+            const Text(
+              'Rate Service',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontWeight: FontWeight.w900),
+            ),
+            if (responderName != null)
+              Text(
+                'Help from $responderName',
+                style: const TextStyle(fontSize: 14, color: Colors.grey),
+              ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Text('How was the responder\'s help?'),
+            const SizedBox(height: 16),
+            StatefulBuilder(
+              builder: (context, setState) => Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (index) {
+                  return IconButton(
+                    icon: Icon(
+                      index < currentRating ? Icons.star_rounded : Icons.star_outline_rounded,
+                      color: const Color(0xFFF59E0B),
+                      size: 32,
+                    ),
+                    onPressed: () {
+                      setState(() {
+                        currentRating = index + 1.0;
+                      });
+                    },
+                  );
+                }),
+              ),
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: commentController,
+              decoration: InputDecoration(
+                hintText: 'Add a comment (optional)',
+                filled: true,
+                fillColor: Colors.grey.withValues(alpha: 0.1),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              maxLines: 2,
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('Cancel', style: TextStyle(color: Colors.grey)),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _emergencyService.rateResponder(
+                  emergencyId: emergencyId,
+                  rating: currentRating,
+                  comment: commentController.text,
+                );
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Thank you for your feedback!')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF10B981),
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('Submit Rating'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCancelConfirmation(String emergencyId) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Cancel Emergency Signal?'),
+        content: const Text('Are you sure you want to cancel this request? Responders will no longer see this in their queue.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context), child: const Text('No, Keep It')),
+          ElevatedButton(
+            onPressed: () async {
+              try {
+                await _emergencyService.cancelEmergency(emergencyId);
+                if (context.mounted) {
+                  Navigator.pop(context);
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Emergency signal cancelled.')),
+                  );
+                }
+              } catch (e) {
+                if (context.mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    SnackBar(content: Text('Error: $e')),
+                  );
+                }
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('Yes, Cancel It'),
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
@@ -73,14 +211,36 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
             List<QueryDocumentSnapshot> active = [];
             List<QueryDocumentSnapshot> history = [];
 
+            final now = DateTime.now();
             for (var doc in docs) {
-              final status = (doc.data() as Map<String, dynamic>)['status'] ?? 'pending';
+              final data = doc.data() as Map<String, dynamic>;
+              final status = data['status'] ?? 'pending';
+              final timestamp = (data['createdAt'] as Timestamp?)?.toDate();
+              
+              if (timestamp == null) continue;
+
+              final difference = now.difference(timestamp);
+              final hoursSinceCreation = difference.inHours;
+              final daysSinceCreation = difference.inDays;
+
+              // If it's older than 30 days, skip it entirely (remove from all views)
+              if (daysSinceCreation >= 30) continue;
+
               if (status == 'pending') {
-                pending.add(doc);
-              } else if (status == 'resolved' || status == 'completed') {
+                // If pending and < 12h, show in pending. Otherwise, skip entirely (don't show in history)
+                if (hoursSinceCreation < 12) {
+                  pending.add(doc);
+                }
+              } else if (status == 'resolved' || status == 'completed' || status == 'cancelled') {
+                // History items show for up to 30 days
                 history.add(doc);
               } else {
-                active.add(doc);
+                // Active/Responding requests
+                if (hoursSinceCreation < 12) {
+                  active.add(doc);
+                } else {
+                  history.add(doc); // Move stale active requests to history
+                }
               }
             }
 
@@ -131,15 +291,27 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
         : 'Just now';
 
     final status = (data['status'] ?? 'pending').toString().toLowerCase();
+    final isHistory = status == 'completed' || status == 'resolved' || status == 'cancelled' || !isActive && status == 'pending';
+
+    String? expiryText;
+    if (isHistory && timestamp != null) {
+      final daysLeft = 30 - DateTime.now().difference(timestamp.toDate()).inDays;
+      expiryText = 'Deletes in $daysLeft days';
+    }
+
     Color statusColor;
     Color statusBgColor;
 
     if (isActive) {
       statusColor = Colors.blue.shade600;
       statusBgColor = Colors.blue.withValues(alpha: 0.1);
-    } else if (status == 'completed' || status == 'resolved') {
+    } else if (status == 'completed' || status == 'resolved' || status == 'cancelled') {
       statusColor = Colors.green.shade600;
       statusBgColor = Colors.green.withValues(alpha: 0.1);
+      if (status == 'cancelled') {
+        statusColor = Colors.grey.shade600;
+        statusBgColor = Colors.grey.withValues(alpha: 0.1);
+      }
     } else {
       statusColor = Colors.orange.shade600;
       statusBgColor = Colors.orange.withValues(alpha: 0.1);
@@ -233,6 +405,19 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                           color: isDark ? Colors.white : const Color(0xFF0F172A),
                         ),
                       ),
+                      if (expiryText != null) ...[
+                        const SizedBox(height: 4),
+                        Row(
+                          children: [
+                            const Icon(LucideIcons.clock, size: 12, color: Color(0xFFF59E0B)),
+                            const SizedBox(width: 4),
+                            Text(
+                              expiryText,
+                              style: const TextStyle(color: Color(0xFFF59E0B), fontSize: 12, fontWeight: FontWeight.bold),
+                            ),
+                          ],
+                        ),
+                      ],
                       if (data['address'] != null) ...[
                         const SizedBox(height: 4),
                         Row(
@@ -306,6 +491,62 @@ class _MyReportsScreenState extends State<MyReportsScreen> {
                   icon: const Icon(LucideIcons.messageCircle, size: 20),
                   label: const Text('Chat with Responder', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
                 ),
+              ),
+            ] else if (status == 'pending' && !isHistory) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => _showCancelConfirmation(doc.id),
+                  style: OutlinedButton.styleFrom(
+                    foregroundColor: Colors.red.shade600,
+                    side: BorderSide(color: Colors.red.shade200),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(LucideIcons.xCircle, size: 20),
+                  label: const Text('Cancel Signal', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                ),
+              ),
+            ] else if ((status == 'completed' || status == 'resolved') && data['rating'] == null) ...[
+              const SizedBox(height: 20),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  onPressed: () => _showRatingDialog(doc.id, data['responderName']),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color(0xFFF59E0B).withValues(alpha: 0.1),
+                    foregroundColor: const Color(0xFFF59E0B),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+                  ),
+                  icon: const Icon(LucideIcons.star, size: 20),
+                  label: const Text('Rate Responder', style: TextStyle(fontWeight: FontWeight.w800, fontSize: 16)),
+                ),
+              ),
+            ] else if (data['rating'] != null) ...[
+              const SizedBox(height: 16),
+              Row(
+                children: [
+                  const Icon(Icons.star_rounded, color: Color(0xFFF59E0B), size: 20),
+                  const SizedBox(width: 4),
+                  Text(
+                    'Rated: ${data['rating']}',
+                    style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFF59E0B)),
+                  ),
+                  if (data['ratingComment'] != null && data['ratingComment'].toString().isNotEmpty) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        '"${data['ratingComment']}"',
+                        style: const TextStyle(fontStyle: FontStyle.italic, color: Colors.grey, fontSize: 13),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ],
+                ],
               ),
             ],
           ],

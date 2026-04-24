@@ -104,6 +104,64 @@ class EmergencyService {
         .snapshots();
   }
 
+  // Cancel an emergency report
+  Future<void> cancelEmergency(String emergencyId) async {
+    try {
+      await _firestore.collection('emergencies').doc(emergencyId).update({
+        'status': 'cancelled',
+        'cancelledAt': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      print('Error cancelling emergency: $e');
+      rethrow;
+    }
+  }
+
+  // Rate the responder
+  Future<void> rateResponder({
+    required String emergencyId,
+    required double rating,
+    required String comment,
+  }) async {
+    try {
+      // 1. Update the emergency document
+      final docRef = _firestore.collection('emergencies').doc(emergencyId);
+      await docRef.update({
+        'rating': rating,
+        'ratingComment': comment,
+        'ratedAt': FieldValue.serverTimestamp(),
+      });
+
+      // 2. Update the responder's profile average rating
+      final emergencyDoc = await docRef.get();
+      final responderId = emergencyDoc.data()?['responderId'];
+
+      if (responderId != null) {
+        final responderRef = _firestore.collection('users').doc(responderId);
+        
+        await _firestore.runTransaction((transaction) async {
+          final responderDoc = await transaction.get(responderRef);
+          if (responderDoc.exists) {
+            final data = responderDoc.data()!;
+            final double currentRating = (data['rating'] ?? 0.0).toDouble();
+            final int totalRatings = data['totalRatings'] ?? 0;
+            
+            final int newTotalRatings = totalRatings + 1;
+            final double newAverageRating = ((currentRating * totalRatings) + rating) / newTotalRatings;
+
+            transaction.update(responderRef, {
+              'rating': newAverageRating,
+              'totalRatings': newTotalRatings,
+            });
+          }
+        });
+      }
+    } catch (e) {
+      print('Error rating responder: $e');
+      rethrow;
+    }
+  }
+
   Future<void> _sendEmergencySMS(String phoneNumber, String userName, String address) async {
     final String message = "EMERGENCY! $userName has triggered an SOS from ResQ App. Location: $address. Please check on them immediately!";
     final Uri smsUri = Uri(

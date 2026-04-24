@@ -15,7 +15,16 @@ class AIEvaluationRecord {
     required this.timestamp,
   });
 
-  factory AIEvaluationRecord.fromMap(String id, Map<String, dynamic> map) {
+  factory AIEvaluationRecord.fromMap(String id, Map<String, dynamic>? map) {
+    if (map == null) {
+      return AIEvaluationRecord(
+        id: id,
+        isActualEmergency: false,
+        isGeminiPredicted: false,
+        geminiConfidence: 0.0,
+        timestamp: DateTime.now(),
+      );
+    }
     return AIEvaluationRecord(
       id: id,
       isActualEmergency: map['isActualEmergency'] ?? false,
