@@ -40,53 +40,66 @@ class EmergencyService {
 
       final String orderId = _generateOrderId();
 
-      // Create Document in Firestore and WAIT for confirmation
-      await _firestore.collection('emergencies').add({
-        'orderId': orderId,
-        'userId': currentUser.uid,
-        'userName': userName,
-        'userPhone': userPhone,
-        'emergencyType': emergencyType,
-        'description': description,
-        'latitude': latitude,
-        'longitude': longitude,
-        'address': address,
-        'mediaUrls': mediaUrls,
-        'preferredResponderId': preferredResponderId,
-        'aiAnalysis': aiAnalysis,
-        'status': 'pending',
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      // Notify Emergency Contacts if SOS - only after Firestore is confirmed
-      if (emergencyType == 'SOS') {
-        final data = userDoc.data() as Map<String, dynamic>?;
-        List<dynamic> contacts = data?['emergencyContacts'] ?? [];
-        
-        if (contacts.isNotEmpty) {
-          final firstContact = contacts.first;
-          final phone = firstContact['phone']?.toString();
-          if (phone != null && phone.isNotEmpty) {
-            // Small delay to ensure push notifications and firestore writes are stable
-            Future.delayed(const Duration(milliseconds: 1000), () {
-               _sendEmergencySMS(phone, userName, address);
-            });
+      // Helper: Function to trigger SMS to the first emergency contact
+      Future<void> triggerFallbackSMS() async {
+        try {
+          List<dynamic> contacts = data?['emergencyContacts'] ?? [];
+          if (contacts.isNotEmpty) {
+            final firstContact = contacts.first;
+            final phone = firstContact['phone']?.toString();
+            if (phone != null && phone.isNotEmpty) {
+               _sendEmergencySMS(phone, userName, address, latitude, longitude);
+            }
           }
+        } catch (e) {
+          print("Error in SMS fallback: $e");
         }
       }
 
-      return {
-        'success': true,
-        'message': '🚨 SIGNAL SENT! Help is on the way.',
-        'orderId': orderId
-      };
-    } catch (e) {
-      print('Error submitting emergency report: $e');
-      String errorMsg = e.toString();
-      if (errorMsg.contains('unavailable') || errorMsg.contains('host')) {
-        errorMsg = "No Internet! Signal could not reach responders, but SMS will be attempted.";
+      // Create Document in Firestore and WAIT for confirmation
+      try {
+        await _firestore.collection('emergencies').add({
+          'orderId': orderId,
+          'userId': currentUser.uid,
+          'userName': userName,
+          'userPhone': userPhone,
+          'emergencyType': emergencyType,
+          'description': description,
+          'latitude': latitude,
+          'longitude': longitude,
+          'address': address,
+          'mediaUrls': mediaUrls,
+          'preferredResponderId': preferredResponderId,
+          'aiAnalysis': aiAnalysis,
+          'status': 'pending',
+          'createdAt': FieldValue.serverTimestamp(),
+        });
+
+        // Notify Emergency Contacts if SOS - Success case
+        if (emergencyType == 'SOS') {
+           Future.delayed(const Duration(milliseconds: 500), () => triggerFallbackSMS());
+        }
+
+        return {
+          'success': true,
+          'message': '🚨 SIGNAL SENT! Help is on the way.',
+          'orderId': orderId
+        };
+      } catch (e) {
+        // FAIL CASE (e.g. No Internet)
+        if (emergencyType == 'SOS') {
+          await triggerFallbackSMS(); // Try SMS even if firestore fails
+        }
+        
+        print('Error submitting emergency report: $e');
+        String errorMsg = e.toString();
+        if (errorMsg.contains('unavailable') || errorMsg.contains('host')) {
+          errorMsg = "No Internet! Signal could not reach responders, but SOS SMS was attempted to your emergency contact.";
+        }
+        return {'success': false, 'message': errorMsg};
       }
-      return {'success': false, 'message': errorMsg};
+    } catch (e) {
+       return {'success': false, 'message': e.toString()};
     }
   }
 
@@ -162,8 +175,12 @@ class EmergencyService {
     }
   }
 
-  Future<void> _sendEmergencySMS(String phoneNumber, String userName, String address) async {
-    final String message = "EMERGENCY! $userName has triggered an SOS from ResQ App. Location: $address. Please check on them immediately!";
+  Future<void> _sendEmergencySMS(String phoneNumber, String userName, String address, double lat, double lng) async {
+    final String locationInfo = address == "Unknown Location" 
+        ? "Lat: $lat, Lng: $lng" 
+        : "$address (Lat: $lat, Lng: $lng)";
+        
+    final String message = "EMERGENCY! $userName has triggered an SOS from ResQ App. Location: $locationInfo. Please check on them immediately!";
     final Uri smsUri = Uri(
       scheme: 'sms',
       path: phoneNumber,

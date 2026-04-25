@@ -71,7 +71,7 @@ class AuthService {
       }
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      return _mapAuthError(e.code);
     } catch (e) {
       return e.toString();
     }
@@ -101,9 +101,33 @@ class AuthService {
       await NotificationService().updateToken();
       return null;
     } on FirebaseAuthException catch (e) {
-      return e.message;
+      return _mapAuthError(e.code);
     } catch (e) {
       return e.toString();
+    }
+  }
+
+  // Error Mapping Helper
+  String _mapAuthError(String code) {
+    switch (code) {
+      case 'user-not-found':
+        return 'No user found with this email.';
+      case 'wrong-password':
+        return 'Incorrect password. Please try again.';
+      case 'invalid-email':
+        return 'The email address is badly formatted.';
+      case 'user-disabled':
+        return 'This account has been disabled.';
+      case 'too-many-requests':
+        return 'Too many failed attempts. Please try again later.';
+      case 'email-already-in-use':
+        return 'An account already exists for this email.';
+      case 'weak-password':
+        return 'The password is too weak. Min 6 characters.';
+      case 'network-request-failed':
+        return 'Network error. Please check your connection.';
+      default:
+        return 'Authentication failed. Please try again.';
     }
   }
 

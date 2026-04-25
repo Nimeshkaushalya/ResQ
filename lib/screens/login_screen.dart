@@ -235,7 +235,17 @@ class _LoginScreenState extends State<LoginScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
       ),
-      validator: (v) => v!.isEmpty ? 'Required' : null,
+      validator: (v) {
+        if (v == null || v.isEmpty) return 'Required field';
+        if (label.toLowerCase().contains('email')) {
+          final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+          if (!emailRegExp.hasMatch(v)) return 'Enter a valid email';
+        }
+        if (label.toLowerCase().contains('password')) {
+          if (v.length < 6) return 'Password must be at least 6 characters';
+        }
+        return null;
+      },
     );
   }
 }

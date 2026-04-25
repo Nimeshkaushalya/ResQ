@@ -77,8 +77,6 @@ class UserStatusRouter extends StatelessWidget {
           return (role == 'emergency_responder') ? const ResponderMainScaffold() : const MainScaffold();
         } 
         
-        if (status == 'rejected') return const RejectedScreen();
-
         return const PendingApprovalScreen();
       },
     );
