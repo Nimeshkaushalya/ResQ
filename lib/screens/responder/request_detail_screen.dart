@@ -36,7 +36,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     final uid = widget.requestData['userId'];
     if (uid != null) {
       try {
-        final doc = await FirebaseFirestore.instance.collection('users').doc(uid).get();
+        final doc =
+            await FirebaseFirestore.instance.collection('users').doc(uid).get();
         if (doc.exists && mounted) {
           setState(() => _victimData = doc.data());
         }
@@ -63,21 +64,25 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       });
 
       // Fetch responder details for the chat
-      final userDoc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .get();
       final responderName = userDoc.data()?['name'] ?? 'Responder';
-      final responderType = userDoc.data()?['responderCategory'] ?? 'Emergency Service';
-      
+      final responderType =
+          userDoc.data()?['responderCategory'] ?? 'Emergency Service';
+
       final userId = widget.requestData['userId'] ?? 'unknown_user';
       final userName = widget.requestData['userName'] ?? 'Citizen';
 
       // Auto-create Chat
       await ChatService().createChat(
-         widget.requestId,
-         userId,
-         user.uid,
-         userName,
-         responderName,
-         responderType,
+        widget.requestId,
+        userId,
+        user.uid,
+        userName,
+        responderName,
+        responderType,
       );
 
       if (mounted) {
@@ -106,8 +111,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     setState(() => _isLoading = true);
 
     try {
-      final docRef = FirebaseFirestore.instance.collection('emergencies').doc(widget.requestId);
-      
+      final docRef = FirebaseFirestore.instance
+          .collection('emergencies')
+          .doc(widget.requestId);
+
       await docRef.update({
         'status': newStatus,
         if (newStatus == 'resolved') 'resolvedAt': FieldValue.serverTimestamp(),
@@ -115,21 +122,26 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
 
       // If status is resolved or completed, increment the responder's totalResolved count
       if (newStatus == 'resolved' || newStatus == 'completed') {
-        await FirebaseFirestore.instance.collection('users').doc(user.uid).update({
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(user.uid)
+            .update({
           'totalResolved': FieldValue.increment(1),
         });
       }
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Status updated to: ${newStatus.replaceAll('_', ' ')}')),
+          SnackBar(
+              content:
+                  Text('Status updated to: ${newStatus.replaceAll('_', ' ')}')),
         );
         // Refresh local state if not popping
         setState(() {
           widget.requestData['status'] = newStatus;
         });
         if (newStatus == 'resolved') {
-           Navigator.pop(context); // Go back after resolving
+          Navigator.pop(context); // Go back after resolving
         }
       }
     } catch (e) {
@@ -194,13 +206,16 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
     print("DEBUG: Request Data contains: ${data.keys.toList()}");
     print("DEBUG: mediaUrls: ${data['mediaUrls']}");
 
-    final String type = data['emergencyType'] ?? data['type'] ?? 'Unknown Emergency';
+    final String type =
+        data['emergencyType'] ?? data['type'] ?? 'Unknown Emergency';
     final String description = data['description'] ?? 'No detail provided';
     final Timestamp? t = data['createdAt'] ?? data['timestamp'];
     final String? userPhone = data['userPhone'];
     final List<dynamic> mediaUrls = data['mediaUrls'] ?? data['evidence'] ?? [];
-    final double? latitude = data['latitude'] ?? (data['location'] != null ? data['location']['latitude'] : null);
-    final double? longitude = data['longitude'] ?? (data['location'] != null ? data['location']['longitude'] : null);
+    final double? latitude = data['latitude'] ??
+        (data['location'] != null ? data['location']['latitude'] : null);
+    final double? longitude = data['longitude'] ??
+        (data['location'] != null ? data['location']['longitude'] : null);
     final String status = data['status'] ?? 'pending';
     final String? aiAnalysis = data['aiAnalysis'];
 
@@ -300,7 +315,10 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
             if (aiAnalysis != null && aiAnalysis.isNotEmpty) ...[
               const Text(
                 'AI Situation Assessment',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Color(0xFF0F172A)),
+                style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF0F172A)),
               ),
               const SizedBox(height: 12),
               Container(
@@ -333,19 +351,24 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                             color: Colors.purple.withValues(alpha: 0.1),
                             borderRadius: BorderRadius.circular(10),
                           ),
-                          child: const Icon(LucideIcons.sparkles, size: 20, color: Colors.purple),
+                          child: const Icon(LucideIcons.sparkles,
+                              size: 20, color: Colors.purple),
                         ),
                         const SizedBox(width: 12),
                         const Text(
-                          "AI Summary", 
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.purple),
+                          "AI Summary",
+                          style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                              color: Colors.purple),
                         ),
                       ],
                     ),
                     const SizedBox(height: 16),
                     Text(
                       aiAnalysis,
-                      style: const TextStyle(fontSize: 15, height: 1.6, color: Colors.black87),
+                      style: const TextStyle(
+                          fontSize: 15, height: 1.6, color: Colors.black87),
                     ),
                   ],
                 ),
@@ -410,7 +433,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                   children: [
                     Icon(LucideIcons.imageOff, color: Colors.grey, size: 32),
                     SizedBox(height: 8),
-                    Text('No visual evidence attached', style: TextStyle(color: Colors.grey)),
+                    Text('No visual evidence attached',
+                        style: TextStyle(color: Colors.grey)),
                   ],
                 ),
               ),
@@ -443,7 +467,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     ),
                     children: [
                       TileLayer(
-                        urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                        urlTemplate:
+                            'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                         userAgentPackageName: 'com.example.resq_flutter',
                       ),
                       MarkerLayer(
@@ -452,7 +477,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                             point: LatLng(latitude, longitude),
                             width: 50,
                             height: 50,
-                            child: const Icon(LucideIcons.mapPin, color: Colors.red, size: 40),
+                            child: const Icon(LucideIcons.mapPin,
+                                color: Colors.red, size: 40),
                           ),
                         ],
                       ),
@@ -527,11 +553,15 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 ),
                 child: Column(
                   children: [
-                    _buildMedicalRow(LucideIcons.droplets, "Blood Group", 
+                    _buildMedicalRow(LucideIcons.droplets, "Blood Group",
                         _victimData!['bloodGroup'] ?? 'Not Provided'),
                     const Divider(height: 24),
-                    _buildMedicalRow(LucideIcons.activity, "Conditions", 
-                        (_victimData!['medicalConditions'] as List?)?.join(", ") ?? 'No chronic conditions reported'),
+                    _buildMedicalRow(
+                        LucideIcons.activity,
+                        "Conditions",
+                        (_victimData!['medicalConditions'] as List?)
+                                ?.join(", ") ??
+                            'No chronic conditions reported'),
                   ],
                 ),
               ),
@@ -548,33 +578,67 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                     backgroundColor: const Color(0xFFDC2626),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(LucideIcons.checkSquare),
-                  label: Text(_isLoading ? 'Accepting...' : 'ACCEPT REQUEST', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : const Icon(LucideIcons.checkSquare),
+                  label: Text(_isLoading ? 'Accepting...' : 'ACCEPT REQUEST',
+                      style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                          letterSpacing: 1)),
                 ),
               )
             else if (status != 'resolved')
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: _isLoading ? null : () {
-                    if (status == 'accepted') _updateStatus('on_the_way');
-                    else if (status == 'on_the_way') _updateStatus('arrived');
-                    else if (status == 'arrived') _updateStatus('resolved');
-                  },
+                  onPressed: _isLoading
+                      ? null
+                      : () {
+                          if (status == 'accepted')
+                            _updateStatus('on_the_way');
+                          else if (status == 'on_the_way')
+                            _updateStatus('arrived');
+                          else if (status == 'arrived')
+                            _updateStatus('resolved');
+                        },
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: status == 'arrived' ? Colors.green : const Color(0xFF2563EB),
+                    backgroundColor: status == 'arrived'
+                        ? Colors.green
+                        : const Color(0xFF2563EB),
                     foregroundColor: Colors.white,
                     padding: const EdgeInsets.symmetric(vertical: 16),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12)),
                   ),
-                  icon: _isLoading ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Icon(status == 'arrived' ? LucideIcons.checkCircle : LucideIcons.play),
+                  icon: _isLoading
+                      ? const SizedBox(
+                          width: 20,
+                          height: 20,
+                          child: CircularProgressIndicator(
+                              color: Colors.white, strokeWidth: 2))
+                      : Icon(status == 'arrived'
+                          ? LucideIcons.checkCircle
+                          : LucideIcons.play),
                   label: Text(
-                    _isLoading ? 'Updating...' : 
-                    status == 'accepted' ? 'ON THE WAY' :
-                    status == 'on_the_way' ? 'I HAVE ARRIVED' : 'MARK AS RESOLVED',
-                    style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1),
+                    _isLoading
+                        ? 'Updating...'
+                        : status == 'accepted'
+                            ? 'ON THE WAY'
+                            : status == 'on_the_way'
+                                ? 'I HAVE ARRIVED'
+                                : 'MARK AS RESOLVED',
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        letterSpacing: 1),
                   ),
                 ),
               ),
@@ -606,7 +670,8 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
                 const SizedBox(width: 16),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _getDirections(null), // The logic now uses internal data
+                    onPressed: () => _getDirections(
+                        null), // The logic now uses internal data
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 16),
                       side: BorderSide(color: Colors.grey.shade300),
@@ -641,8 +706,14 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text(label, style: const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
-              Text(value, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Color(0xFF0F172A))),
+              Text(label,
+                  style:
+                      const TextStyle(fontSize: 12, color: Color(0xFF64748B))),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF0F172A))),
             ],
           ),
         ),

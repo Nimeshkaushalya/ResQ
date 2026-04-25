@@ -127,8 +127,7 @@ class _SignupScreenState extends State<SignupScreen> {
     } else {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully!')));
-        // Force navigate to root and clear stack to trigger AuthWrapper refresh
-        Navigator.of(context).pushNamedAndRemoveUntil('/', (route) => false);
+        Navigator.pop(context);
       }
     }
   }

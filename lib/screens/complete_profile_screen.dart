@@ -83,7 +83,7 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
     setState(() => _isLoading = true);
     try {
-      String uniqueId = await _authService.generateUniqueId();
+      String uniqueId = "RQ${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
       
       String? frontUrl = await _cloudinary.uploadImage(_nicFront!);
       String? backUrl = await _cloudinary.uploadImage(_nicBack!);

@@ -17,27 +17,27 @@
 
 ---
 
-## 🚀 Key Features
+## Key Features
 
-### 👤 For Citizens (Victims)
+###  Citizens (Victims)
 - **Instant SOS**: Send alerts with high-accuracy GPS coordinates.
 - **AI Injury Analysis**: Upload photos to receive immediate first-aid instructions based on injury severity.
 - **Live Responder Tracking**: See the real-time location of the assigned responder on a map.
 - **Voice-Enabled First Aid**: Search and listen to first-aid guides hands-free.
 
-### 🚑 For Responders
+###  Responders
 - **Emergency Feed**: View active requests nearby with distance and urgency indicators.
 - **Live Navigation**: Integrated map routing to the incident location.
 - **Real-time Chat**: Communicate directly with the victim during transit.
 
-### 🛡️ For Administrators
+###  Administrators
 - **Verification System**: Review and approve responder certifications.
 - **AI Metrics**: Monitor the performance and accuracy of AI evaluations.
 - **Platform Analytics**: Analyze response times and emergency trends.
 
 ---
 
-## 🛠️ Technology Stack
+##  Tech Stack
 - **Frontend**: Flutter (Dart)
 - **Backend**: Firebase (Firestore, Authentication, Storage)
 - **AI/ML**: Google Generative AI (Gemini Pro), TensorFlow Lite
