@@ -5,27 +5,24 @@ import 'package:resq_flutter/services/notification_service.dart';
 import 'dart:math';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final FirebaseAuth _auth = FirebaseAuth.instance; // Handles Email/Password & Google login
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Stores extra user data (Role, Username)
 
-  // Stream of auth changes
+  // Stream: Notifies the app instantly if the user logs in or logs out
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
-  // Get current user
   User? get currentUser => _auth.currentUser;
 
-  // Generate Unique ID
   Future<String> _generateUniqueId() async {
     final random = Random();
     String newId = '';
     bool isUnique = false;
 
     while (!isUnique) {
-      // Generate 8 random digits
       int randomNumber = random.nextInt(99999999);
       newId = 'RESQ-${randomNumber.toString().padLeft(8, '0')}';
 
-      // Check if it exists in Firestore
+      // Check Firestore to see if anyone else already has this ID
       final query = await _firestore
           .collection('users')
           .where('uniqueId', isEqualTo: newId)
@@ -33,34 +30,34 @@ class AuthService {
           .get();
 
       if (query.docs.isEmpty) {
-        isUnique = true;
+        isUnique = true; // Loop stops only when we find an unused ID
       }
     }
-
     return newId;
   }
 
-  // Sign Up
   Future<String?> signUp({
     required String email,
     required String password,
-    required String role, // 'user' or 'emergency_responder'
+    required String role,
     required String username,
     required String phoneNumber,
-    String? responderType, // NEW
-    Map<String, String>? documents, // NEW
+    String? responderType,
+    Map<String, String>? documents,
   }) async {
     try {
+      // 1. Create the account in Firebase Authentication (Security)
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
       );
       User? user = result.user;
 
-      // Save additional user info to Firestore
       if (user != null) {
+        // 2. Generate the Unique ID
         String uniqueId = await _generateUniqueId();
 
+        // 3. Prepare the data to be saved in Firestore (The 'user' profile)
         Map<String, dynamic> userData = {
           'uid': user.uid,
           'uniqueId': uniqueId,
@@ -69,56 +66,32 @@ class AuthService {
           'username': username,
           'phoneNumber': phoneNumber,
           'createdAt': FieldValue.serverTimestamp(),
+          'verificationStatus': 'pending', // Admins must verify everyone
         };
 
         if (role == 'emergency_responder') {
-          if (responderType != null) {
-            userData['responderType'] = responderType;
-          }
+          if (responderType != null) userData['responderType'] = responderType;
         }
 
-        if (documents != null) {
-          userData['documents'] = documents;
-        }
-        userData['verificationStatus'] = 'pending';
-        userData['verificationNote'] = '';
+        if (documents != null) userData['documents'] = documents;
 
+        // 4. Save the document to the 'users' collection
         await _firestore.collection('users').doc(user.uid).set(userData);
 
-        // Update FCM Token
+        // 5. Setup Push Notifications (FCM Token)
         await NotificationService().updateToken();
       }
-      return null; // No error
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'email-already-in-use') {
-        return 'The account already exists for that email.';
-      } else if (e.code == 'weak-password') {
-        return 'The password provided is too weak.';
-      }
+      // Logic: Friendly error messages for common issues
+      if (e.code == 'email-already-in-use') return 'The account already exists for that email.';
+      if (e.code == 'weak-password') return 'The password provided is too weak.';
       return e.message;
     } catch (e) {
       return e.toString();
     }
   }
 
-  // Stream of user data from Firestore
-  Stream<DocumentSnapshot> getUserStream() {
-    User? user = _auth.currentUser;
-    if (user != null) {
-      return _firestore.collection('users').doc(user.uid).snapshots();
-    }
-    return const Stream.empty();
-  }
-
-  // Send Email Verification
-  Future<void> sendVerificationEmail() async {
-    User? user = _auth.currentUser;
-    if (user != null && !user.emailVerified) {
-      await user.sendEmailVerification();
-    }
-  }
-
-  // Sign In
   Future<String?> signIn({
     required String email,
     required String password,
@@ -128,53 +101,44 @@ class AuthService {
         email: email,
         password: password,
       );
-
-      // Update FCM Token
       await NotificationService().updateToken();
-
-      return null; // No error
+      return null;
     } on FirebaseAuthException catch (e) {
-      if (e.code == 'user-not-found') {
-        return 'No user found for that email.';
-      } else if (e.code == 'wrong-password') {
-        return 'Wrong password provided for that user.';
-      } else if (e.code == 'invalid-credential') {
-        return 'Invalid credentials.';
-      }
+      if (e.code == 'user-not-found') return 'No user found for that email.';
+      if (e.code == 'wrong-password') return 'Wrong password provided.';
       return e.message;
     } catch (e) {
       return e.toString();
     }
   }
 
-  // Google Sign In
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
-      // Use the Web Client ID from google-services.json (client_type: 3)
+      // 1. Trigger the Google Login popup on the phone
       final GoogleSignInAccount? googleUser = await GoogleSignIn(
-        serverClientId:
-            '773245302476-93j4rkud9gq2lfi19qabgnso1vsn2kat.apps.googleusercontent.com',
+        serverClientId: '773245302476-93j4rkud9gq2lfi19qabgnso1vsn2kat.apps.googleusercontent.com',
       ).signIn();
-      if (googleUser == null)
-        return {'error': 'Google sign in cancelled.', 'isNewUser': false};
+      
+      if (googleUser == null) return {'error': 'Google sign in cancelled.', 'isNewUser': false};
 
-      final GoogleSignInAuthentication googleAuth =
-          await googleUser.authentication;
+      // 2. Get the security tokens from Google
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
+      // 3. Exchange Google tokens for a Firebase login
       UserCredential result = await _auth.signInWithCredential(credential);
       User? user = result.user;
 
       if (user != null) {
+        // 4. Check if this Google user already exists in our Firestore database
         final doc = await _firestore.collection('users').doc(user.uid).get();
         if (!doc.exists) {
+          // If NOT, we tell the UI that it's a NEW user and they need to pick a Role
           return {'error': null, 'isNewUser': true, 'user': user};
         }
-
-        // Update FCM Token for existing user
         await NotificationService().updateToken();
         return {'error': null, 'isNewUser': false, 'user': user};
       }
@@ -184,43 +148,22 @@ class AuthService {
     }
   }
 
-  // Create Google User Profile
-  Future<String?> createGoogleUserProfile({
-    required User user,
-    required String role,
-  }) async {
-    try {
-      String uniqueId = await _generateUniqueId();
-      await _firestore.collection('users').doc(user.uid).set({
-        'uid': user.uid,
-        'uniqueId': uniqueId,
-        'email': user.email,
-        'role': role,
-        'username': user.displayName ?? 'User',
-        'phoneNumber': user.phoneNumber ?? '',
-        'createdAt': FieldValue.serverTimestamp(),
-        'verificationStatus': 'pending',
-      });
-
-      // Update FCM Token
-      await NotificationService().updateToken();
-      return null;
-    } catch (e) {
-      return e.toString();
+  Stream<DocumentSnapshot> getUserStream() {
+    User? user = _auth.currentUser;
+    if (user != null) {
+      return _firestore.collection('users').doc(user.uid).snapshots();
     }
+    return const Stream.empty();
   }
 
-  // Sign Out
   Future<void> signOut() async {
     await _auth.signOut();
   }
 
-  // Get User Role
   Future<String?> getUserRole() async {
     User? user = _auth.currentUser;
     if (user != null) {
-      DocumentSnapshot doc =
-          await _firestore.collection('users').doc(user.uid).get();
+      DocumentSnapshot doc = await _firestore.collection('users').doc(user.uid).get();
       if (doc.exists) {
         return doc.get('role') as String?;
       }
@@ -228,7 +171,6 @@ class AuthService {
     return null;
   }
 
-  // Update User Profile
   Future<String?> updateUserProfile({
     required Map<String, dynamic> data,
   }) async {
@@ -244,3 +186,4 @@ class AuthService {
     }
   }
 }
+

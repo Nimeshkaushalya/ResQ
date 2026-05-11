@@ -6,7 +6,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 import 'dart:io';
 import '../services/cloudinary_service.dart';
-import '../services/auth_service.dart';
+
 import '../services/notification_service.dart';
 
 class CompleteProfileScreen extends StatefulWidget {
@@ -30,12 +30,12 @@ class _CompleteProfileScreenState extends State<CompleteProfileScreen> {
 
   String _selectedRole = 'user';
   File? _nicFront, _nicBack;
-  List<File> _certificates = [];
+  final List<File> _certificates = [];
   bool _isLoading = false;
 
   final CloudinaryService _cloudinary = CloudinaryService();
   final ImagePicker _picker = ImagePicker();
-  final AuthService _authService = AuthService();
+
 
   Future<void> _pickImage(String type) async {
     if (type == 'multi_cert') {

@@ -1,4 +1,6 @@
-0 Burn
-1 normal
-2 abrasions
-3 cut
+Abrasions
+Bruises
+Burns
+Cut
+Laseration
+Normal

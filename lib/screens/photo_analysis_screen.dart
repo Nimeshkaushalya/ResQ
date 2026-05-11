@@ -48,7 +48,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   @override
   void initState() {
     super.initState();
-    _offlineAIService.init();
+    _offlineAIService.init(); // Pre-load the TFLite model into memory
     _checkInitialConnectivity();
   }
 
@@ -90,21 +90,26 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
     });
 
     try {
+      // 1. Final check of internet status
       bool hasInternet = await _connectivityService.checkInternetConnection();
-      setState(() {
-        _isOnline = hasInternet;
-      });
+      setState(() { _isOnline = hasInternet; });
 
       String result;
       if (hasInternet) {
+        // CASE 1: ONLINE MODE
+        // Uses Gemini 1.5 Flash API (Cloud-based).
+        // Best for complex analysis and follow-up chatting.
         final gemini = Provider.of<GeminiService>(context, listen: false);
         result = await gemini.analyzeInjuryPhoto(_imageFile!, emergencyHint: _selectedHint);
         
-        // Initialize Chat Service
+        // Initialize the Chat Service to allow the user to ask follow-up questions
         _chatService = AiChatService(gemini);
         _chatService!.initializeChat(result, _imageFile!.path);
-        _isChatMode = true;
+        _isChatMode = true; // Switch UI to Chat mode
       } else {
+        // CASE 2: OFFLINE MODE
+        // Uses the Local TFLite model stored inside the app.
+        // This is a life-saver when there is no internet coverage.
         result = await _offlineAIService.analyzeImageOffline(_imageFile!, emergencyHint: _selectedHint);
       }
 
@@ -112,16 +117,9 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
         _analysisResult = result;
       });
     } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Failed to analyze: $e')),
-      );
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to analyze: $e')));
     } finally {
-      if (mounted) {
-        setState(() {
-          _isAnalyzing = false;
-        });
-      }
+      if (mounted) setState(() { _isAnalyzing = false; });
     }
   }
 
@@ -131,16 +129,13 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
 
     if (text == null) _chatController.clear();
     
-    setState(() {
-      _isSending = true;
-    });
+    setState(() { _isSending = true; });
 
+    // Send the question to Gemini Service
     await _chatService!.sendMessage(message);
     
     if (mounted) {
-      setState(() {
-        _isSending = false;
-      });
+      setState(() { _isSending = false; });
       _scrollToBottom();
     }
   }
@@ -167,49 +162,28 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
   Future<void> _submitEvaluation(bool isAccurate) async {
     if (_analysisResult == null) return;
     
-    setState(() {
-      _isSubmittingEvaluation = true;
-    });
+    setState(() { _isSubmittingEvaluation = true; });
 
     try {
-      // Very basic parsing for demo - extract confidence
-      double confidence = 0.8; // default
+      // 1. Extract confidence score from the AI text using Regex
+      double confidence = 0.8;
       final confidenceMatch = RegExp(r'\*\*CONFIDENCE\*\*:\s*(\d+)%').firstMatch(_analysisResult!);
       if (confidenceMatch != null) {
         confidence = double.parse(confidenceMatch.group(1)!) / 100.0;
       }
 
-      // Assumption: if they get a result and the analysis didn't fail, it predicted *something*.
-      // We assume if it found a severity, it predicted an injury.
       bool predictedAnomalous = _analysisResult!.contains('**SEVERITY**');
       
+      // 2. Save the result to Firestore for the final accuracy report (65% offline/80% online)
       await _metricsService.saveEvaluation(
         isActualEmergency: isAccurate ? predictedAnomalous : !predictedAnomalous,
         isGeminiPredicted: predictedAnomalous,
         geminiConfidence: confidence,
       );
 
-      setState(() {
-        _hasEvaluated = true;
-      });
-      
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Thank you! Feedback recorded for AI Metrics.')),
-        );
-      }
-    } catch (e) {
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Failed to submit evaluation: $e')),
-        );
-      }
+      setState(() { _hasEvaluated = true; });
     } finally {
-      if (mounted) {
-        setState(() {
-          _isSubmittingEvaluation = false;
-        });
-      }
+      if (mounted) setState(() { _isSubmittingEvaluation = false; });
     }
   }
 
@@ -229,23 +203,18 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
         title: const Text('Analyze Injury'),
         actions: [
           if (_isChatMode) ...[
-            IconButton(
-              icon: const Icon(LucideIcons.share2, size: 20),
-              onPressed: _shareChat,
-            ),
-            IconButton(
-              icon: const Icon(LucideIcons.trash2, size: 20),
-              onPressed: () => setState(() {
-                _isChatMode = false;
-                _analysisResult = null;
-                _chatService?.clearChat();
-              }),
-            ),
+            IconButton(icon: const Icon(LucideIcons.share2, size: 20), onPressed: _shareChat),
+            IconButton(icon: const Icon(LucideIcons.trash2, size: 20), onPressed: () => setState(() {
+              _isChatMode = false;
+              _analysisResult = null;
+              _chatService?.clearChat();
+            })),
           ]
         ],
       ),
       body: Column(
         children: [
+          // Banner asking the user for feedback (Used for Accuracy Metrics)
           if (_isChatMode && !_hasEvaluated) _buildEvaluationBanner(),
           Expanded(
             child: _isChatMode ? _buildChatUI() : _buildSelectionUI(),
@@ -256,20 +225,19 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
     );
   }
 
+  // UI LOGIC: The selection screen where user picks/takes a photo
   Widget _buildSelectionUI() {
     return SingleChildScrollView(
       padding: const EdgeInsets.all(16.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          // Preview Image
           Container(
             height: 250,
             decoration: BoxDecoration(
               color: Colors.white,
               borderRadius: BorderRadius.circular(16),
               border: Border.all(color: Colors.grey.shade200),
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10)],
             ),
             clipBehavior: Clip.hardEdge,
             child: _imageFile != null
@@ -292,6 +260,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
           const SizedBox(height: 32),
           _buildAnalyzeButton(),
           const SizedBox(height: 24),
+          // Logic: Display results differently if it was an offline analysis
           if (!_isOnline && _analysisResult != null) ...[
             const Text('Offline Analysis Result', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
             const SizedBox(height: 12),
@@ -300,8 +269,6 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.grey.shade200)),
               child: MarkdownBody(data: _analysisResult!),
             ),
-            const SizedBox(height: 12),
-            const Text('Note: Follow-up chat requires an internet connection.', style: TextStyle(fontSize: 12, color: Colors.orange, fontStyle: FontStyle.italic)),
           ],
         ],
       ),
@@ -433,7 +400,7 @@ class _PhotoAnalysisScreenState extends State<PhotoAnalysisScreen> {
                         topLeft: isAI ? const Radius.circular(0) : const Radius.circular(16),
                         topRight: isAI ? const Radius.circular(16) : const Radius.circular(0),
                       ),
-                      boxShadow: [if (isAI) BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 5)],
+                      boxShadow: [if (isAI) BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 5)],
                     ),
                     child: isAI 
                       ? MarkdownBody(data: message.text, styleSheet: MarkdownStyleSheet(p: const TextStyle(fontSize: 14, color: Color(0xFF334155), height: 1.4)))
