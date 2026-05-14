@@ -118,6 +118,7 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
       await docRef.update({
         'status': newStatus,
         if (newStatus == 'resolved') 'resolvedAt': FieldValue.serverTimestamp(),
+        if (newStatus == 'completed') 'completedAt': FieldValue.serverTimestamp(),
       });
 
       // If status is resolved or completed, increment the responder's totalResolved count
@@ -136,12 +137,12 @@ class _RequestDetailScreenState extends State<RequestDetailScreen> {
               content:
                   Text('Status updated to: ${newStatus.replaceAll('_', ' ')}')),
         );
-        // Refresh local state if not popping
         setState(() {
           widget.requestData['status'] = newStatus;
         });
-        if (newStatus == 'resolved') {
-          Navigator.pop(context); // Go back after resolving
+        // Pop screen after final statuses so profile refreshes with new count
+        if (newStatus == 'resolved' || newStatus == 'completed') {
+          Navigator.pop(context);
         }
       }
     } catch (e) {

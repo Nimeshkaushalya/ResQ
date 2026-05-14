@@ -59,6 +59,101 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
+  void _showForgotPasswordDialog() {
+    final resetController = TextEditingController();
+    bool isSending = false;
+
+    showDialog(
+      context: context,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
+          title: const Column(
+            children: [
+              Icon(LucideIcons.keyRound, color: Color(0xFFDC2626), size: 40),
+              SizedBox(height: 12),
+              Text("Reset Password", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 20)),
+            ],
+          ),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text("Enter your email address to receive a password recovery link.",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(color: Colors.grey, fontSize: 13)),
+              const SizedBox(height: 20),
+              TextField(
+                controller: resetController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: InputDecoration(
+                  prefixIcon: const Icon(LucideIcons.mail, size: 18),
+                  hintText: "Email address",
+                  filled: true,
+                  fillColor: Colors.grey.shade50,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: BorderSide.none),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            Row(
+              children: [
+                Expanded(
+                  child: TextButton(
+                    onPressed: () => Navigator.pop(context),
+                    child: const Text("Cancel", style: TextStyle(color: Colors.grey)),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: const Color(0xFFDC2626),
+                      foregroundColor: Colors.white,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: isSending
+                        ? null
+                        : () async {
+                            String email = resetController.text.trim();
+                            if (email.isEmpty) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                const SnackBar(content: Text("Please enter your email")),
+                              );
+                              return;
+                            }
+                            setDialogState(() => isSending = true);
+                            final error = await _authService.sendPasswordResetEmail(email);
+                            if (context.mounted) {
+                              Navigator.pop(context);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(error ?? "Password reset email sent! Check your inbox."),
+                                  backgroundColor: error == null ? Colors.green : Colors.red,
+                                ),
+                              );
+                            }
+                          },
+                    child: isSending
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Text("Send Link", style: TextStyle(fontWeight: FontWeight.bold)),
+                  ),
+                ),
+              ],
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   void _showRoleSelectionDialog(User user) {
     File? nicFront;
     File? nicBack;
@@ -393,7 +488,7 @@ class _LoginScreenState extends State<LoginScreen> {
                       ],
                     ),
                     TextButton(
-                        onPressed: () {},
+                        onPressed: _showForgotPasswordDialog,
                         child: const Text("Forgot Password?",
                             style: TextStyle(
                                 color: Color(0xFFDC2626),
@@ -495,7 +590,26 @@ class _LoginScreenState extends State<LoginScreen> {
     return TextFormField(
       controller: controller,
       obscureText: isPassword && !_isPasswordVisible,
-      validator: (v) => v!.isEmpty ? 'Required' : null,
+      validator: (v) {
+        if (v == null || v.trim().isEmpty) return '$label is required';
+        if (label.toLowerCase().contains('email')) {
+          final email = v.trim().toLowerCase();
+          final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+          if (!emailRegExp.hasMatch(email)) {
+            return 'Please enter a valid email address';
+          }
+          if (email.endsWith('@gmail.co') || email.endsWith('@gmail.c')) {
+            return 'Did you mean @gmail.com?';
+          }
+          if (email.endsWith('.co') && (email.contains('@gmail.') || email.contains('@yahoo.') || email.contains('@outlook.') || email.contains('@hotmail.'))) {
+            return 'Please enter the complete domain (.com)';
+          }
+        }
+        if (isPassword) {
+          if (v.length < 6) return 'Password must be at least 6 characters';
+        }
+        return null;
+      },
       decoration: InputDecoration(
         hintText: label,
         hintStyle: const TextStyle(color: Colors.grey, fontSize: 14),

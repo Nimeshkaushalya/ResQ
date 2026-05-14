@@ -148,6 +148,18 @@ class AuthService {
     }
   }
 
+  Future<String?> sendPasswordResetEmail(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email.trim());
+      return null;
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'user-not-found') return 'No user found for that email.';
+      return e.message;
+    } catch (e) {
+      return e.toString();
+    }
+  }
+
   Stream<DocumentSnapshot> getUserStream() {
     User? user = _auth.currentUser;
     if (user != null) {

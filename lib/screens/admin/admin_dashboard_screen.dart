@@ -203,7 +203,7 @@ class AdminDashboardScreen extends StatelessWidget {
                             child: _buildStatCard('Online Now', onlineResponders.toString(), Icons.wifi_tethering, Colors.green)
                           ),
                           GestureDetector(
-                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => PendingApprovalsScreen())),
+                            onTap: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const PendingApprovalsScreen())),
                             child: _buildStatCard('Pending Work', pendingApprovals.toString(), Icons.pending_actions, Colors.deepOrange)
                           ),
                         ],
@@ -226,7 +226,7 @@ class AdminDashboardScreen extends StatelessWidget {
                           ),
                           borderRadius: BorderRadius.circular(24),
                           boxShadow: [
-                            BoxShadow(color: Colors.blue.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6)),
+                            BoxShadow(color: Colors.blue.withValues(alpha: 0.3), blurRadius: 12, offset: const Offset(0, 6)),
                           ],
                         ),
                         child: Column(
@@ -244,7 +244,7 @@ class AdminDashboardScreen extends StatelessWidget {
                                 ),
                                 Container(
                                   padding: const EdgeInsets.all(12),
-                                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                                  decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
                                   child: const Icon(Icons.analytics, color: Colors.white, size: 28),
                                 ),
                               ],
@@ -275,7 +275,7 @@ class AdminDashboardScreen extends StatelessWidget {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => PendingApprovalsScreen(),
+                              builder: (context) => const PendingApprovalsScreen(),
                             ),
                           );
                         },
@@ -317,7 +317,7 @@ class AdminDashboardScreen extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           label.toUpperCase(),
-          style: TextStyle(color: Colors.white.withOpacity(0.7), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+          style: TextStyle(color: Colors.white.withValues(alpha: 0.7), fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.5),
         ),
       ],
     );
@@ -331,7 +331,7 @@ class AdminDashboardScreen extends StatelessWidget {
         borderRadius: BorderRadius.circular(20),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 8,
             offset: const Offset(0, 2),
           ),

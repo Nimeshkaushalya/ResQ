@@ -20,10 +20,12 @@ class _SignupScreenState extends State<SignupScreen> {
   final _passwordController = TextEditingController();
   final _confirmPasswordController = TextEditingController();
   final AuthService _authService = AuthService();
+  final _formKey = GlobalKey<FormState>();
 
   String _selectedRole = 'user';
   String? _selectedCategory;
   bool _isLoading = false;
+  bool _autoValidate = false;
   bool _obscurePassword = true;
   bool _obscureConfirmPassword = true;
 
@@ -110,24 +112,30 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    String? error = await _authService.signUp(
-      email: _emailController.text.trim(),
-      username: _usernameController.text.trim(),
-      phoneNumber: _phoneController.text.trim(),
-      password: _passwordController.text.trim(),
-      role: _selectedRole,
-      responderType: _selectedCategory,
-      documents: uploadedDocs,
-    );
+    try {
+      String? error = await _authService.signUp(
+        email: _emailController.text.trim(),
+        username: _usernameController.text.trim(),
+        phoneNumber: _phoneController.text.trim(),
+        password: _passwordController.text.trim(),
+        role: _selectedRole,
+        responderType: _selectedCategory,
+        documents: uploadedDocs,
+      );
 
-    setState(() => _isLoading = false);
+      if (!mounted) return;
+      setState(() => _isLoading = false);
 
-    if (error != null) {
-      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
-    } else {
-      if (mounted) {
+      if (error != null) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
+      } else {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account created successfully!')));
         Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() => _isLoading = false);
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error creating account: $e')));
       }
     }
   }
@@ -231,12 +239,9 @@ class _SignupScreenState extends State<SignupScreen> {
       }
       setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
-      if (_usernameController.text.isEmpty || _emailController.text.isEmpty) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please fill all fields')));
-        return;
-      }
-      if (_passwordController.text != _confirmPasswordController.text) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Passwords do not match')));
+      setState(() => _autoValidate = true);
+      if (!_formKey.currentState!.validate()) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please correct the errors in red below')));
         return;
       }
       setState(() => _currentStep = 2);
@@ -304,23 +309,57 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   Widget _buildAccountDetails() {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text("Account Details", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 8),
-        Text("Setup your official ResQ profile", style: TextStyle(color: Colors.grey.shade600)),
-        const SizedBox(height: 32),
-        _buildInputField(_usernameController, 'Username', LucideIcons.user),
-        const SizedBox(height: 16),
-        _buildInputField(_emailController, 'Email Address', LucideIcons.mail, keyboard: TextInputType.emailAddress),
-        const SizedBox(height: 16),
-        _buildInputField(_phoneController, 'Phone Number', LucideIcons.phone, keyboard: TextInputType.phone),
-        const SizedBox(height: 16),
-        _buildInputField(_passwordController, 'Password', LucideIcons.lock, isPassword: true, obscure: _obscurePassword, onToggle: () => setState(() => _obscurePassword = !_obscurePassword)),
-        const SizedBox(height: 16),
-        _buildInputField(_confirmPasswordController, 'Confirm Password', LucideIcons.lock, isPassword: true, obscure: _obscureConfirmPassword, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword)),
-      ],
+    return Form(
+      key: _formKey,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text("Account Details", style: TextStyle(fontSize: 24, fontWeight: FontWeight.w800)),
+          const SizedBox(height: 8),
+          Text("Setup your official ResQ profile", style: TextStyle(color: Colors.grey.shade600)),
+          const SizedBox(height: 32),
+          _buildInputField(_usernameController, 'Username', LucideIcons.user, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Username is required';
+            if (v.trim().length < 3) return 'Must be at least 3 characters';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildInputField(_emailController, 'Email Address', LucideIcons.mail, keyboard: TextInputType.emailAddress, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Email is required';
+            final email = v.trim().toLowerCase();
+            final emailRegExp = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
+            if (!emailRegExp.hasMatch(email)) return 'Enter a valid email address';
+            
+            // Smart validation to prevent highly common incomplete domain typos
+            if (email.endsWith('@gmail.co') || email.endsWith('@gmail.c')) {
+              return 'Did you mean @gmail.com?';
+            }
+            if (email.endsWith('.co') && (email.contains('@gmail.') || email.contains('@yahoo.') || email.contains('@outlook.') || email.contains('@hotmail.'))) {
+              return 'Please enter the complete domain (.com)';
+            }
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildInputField(_phoneController, 'Phone Number', LucideIcons.phone, keyboard: TextInputType.phone, validator: (v) {
+            if (v == null || v.trim().isEmpty) return 'Phone number is required';
+            final digits = v.replaceAll(' ', '').replaceAll('-', '').replaceAll('+', '');
+            if (digits.length < 8) return 'Must contain at least 8 digits';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildInputField(_passwordController, 'Password', LucideIcons.lock, isPassword: true, obscure: _obscurePassword, onToggle: () => setState(() => _obscurePassword = !_obscurePassword), validator: (v) {
+            if (v == null || v.isEmpty) return 'Password is required';
+            if (v.length < 6) return 'Must be at least 6 characters';
+            return null;
+          }),
+          const SizedBox(height: 16),
+          _buildInputField(_confirmPasswordController, 'Confirm Password', LucideIcons.lock, isPassword: true, obscure: _obscureConfirmPassword, onToggle: () => setState(() => _obscureConfirmPassword = !_obscureConfirmPassword), validator: (v) {
+            if (v == null || v.isEmpty) return 'Confirm password is required';
+            if (v != _passwordController.text) return 'Passwords do not match';
+            return null;
+          }),
+        ],
+      ),
     );
   }
 
@@ -380,24 +419,48 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-  Widget _buildInputField(TextEditingController controller, String label, IconData icon, {bool isPassword = false, bool obscure = false, VoidCallback? onToggle, TextInputType keyboard = TextInputType.text}) {
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.grey.shade50,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: Colors.grey.shade200),
-      ),
-      child: TextFormField(
-        controller: controller,
-        obscureText: obscure,
-        keyboardType: keyboard,
-        decoration: InputDecoration(
-          labelText: label,
-          prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
-          suffixIcon: isPassword ? IconButton(icon: Icon(obscure ? LucideIcons.eyeOff : LucideIcons.eye, size: 20), onPressed: onToggle) : null,
-          border: InputBorder.none,
-          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        ),
+  Widget _buildInputField(
+      TextEditingController controller, String label, IconData icon,
+      {bool isPassword = false,
+      bool obscure = false,
+      VoidCallback? onToggle,
+      TextInputType keyboard = TextInputType.text,
+      String? Function(String?)? validator}) {
+    return TextFormField(
+      controller: controller,
+      obscureText: obscure,
+      keyboardType: keyboard,
+      validator: validator,
+      autovalidateMode: _autoValidate ? AutovalidateMode.always : AutovalidateMode.disabled,
+      decoration: InputDecoration(
+        labelText: label,
+        labelStyle: TextStyle(color: Colors.grey.shade600, fontSize: 14),
+        prefixIcon: Icon(icon, size: 20, color: Colors.grey.shade500),
+        suffixIcon: isPassword
+            ? IconButton(
+                icon: Icon(obscure ? LucideIcons.eyeOff : LucideIcons.eye,
+                    size: 20),
+                onPressed: onToggle)
+            : null,
+        filled: true,
+        fillColor: Colors.grey.shade50,
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200)),
+        enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: BorderSide(color: Colors.grey.shade200)),
+        focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Color(0xFFDC2626))),
+        errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red)),
+        focusedErrorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: Colors.red, width: 2)),
       ),
     );
   }

@@ -110,9 +110,8 @@ class _FirstAidDetailScreenState extends State<FirstAidDetailScreen> {
                       borderRadius: BorderRadius.circular(16),
                       child: Image.asset(
                         step.imagePath!,
-                        height: 200,
                         width: double.infinity,
-                        fit: BoxFit.cover,
+                        fit: BoxFit.contain,
                         errorBuilder: (context, error, stackTrace) =>
                             _buildPlaceholder('Image file missing in assets'),
                       ),
@@ -197,9 +196,9 @@ class _FirstAidDetailScreenState extends State<FirstAidDetailScreen> {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: color.withOpacity(0.05),
+        color: color.withValues(alpha: 0.05),
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: color.withOpacity(0.2)),
+        border: Border.all(color: color.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
