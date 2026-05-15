@@ -33,10 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
-      if (mounted) setState(() => _isLoading = false);
-      if (error != null && mounted) {
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error)));
+      
+      if (error != null) {
+        if (mounted) setState(() => _isLoading = false);
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
       }
     }
   }
@@ -48,14 +48,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final bool isNewUser = result['isNewUser'];
     final user = result['user'];
 
-    if (mounted) setState(() => _isLoading = false);
-
     if (error != null && error != 'Google sign in cancelled.') {
-      if (mounted)
-        ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(error)));
+      if (mounted) setState(() => _isLoading = false);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else if (isNewUser && user != null) {
+      if (mounted) setState(() => _isLoading = false);
       if (mounted) _showRoleSelectionDialog(user);
+    } else if (error == 'Google sign in cancelled.') {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 

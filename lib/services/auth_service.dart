@@ -5,10 +5,10 @@ import 'package:resq_flutter/services/notification_service.dart';
 import 'dart:math';
 
 class AuthService {
-  final FirebaseAuth _auth = FirebaseAuth.instance; // Handles Email/Password & Google login
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Stores extra user data (Role, Username)
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Stream: Notifies the app instantly if the user logs in or logs out
+
   Stream<User?> get authStateChanges => _auth.authStateChanges();
 
   User? get currentUser => _auth.currentUser;
@@ -22,7 +22,7 @@ class AuthService {
       int randomNumber = random.nextInt(99999999);
       newId = 'RESQ-${randomNumber.toString().padLeft(8, '0')}';
 
-      // Check Firestore to see if anyone else already has this ID
+
       final query = await _firestore
           .collection('users')
           .where('uniqueId', isEqualTo: newId)
@@ -30,7 +30,7 @@ class AuthService {
           .get();
 
       if (query.docs.isEmpty) {
-        isUnique = true; // Loop stops only when we find an unused ID
+        isUnique = true;
       }
     }
     return newId;
@@ -46,7 +46,6 @@ class AuthService {
     Map<String, String>? documents,
   }) async {
     try {
-      // 1. Create the account in Firebase Authentication (Security)
       UserCredential result = await _auth.createUserWithEmailAndPassword(
         email: email,
         password: password,
@@ -54,10 +53,9 @@ class AuthService {
       User? user = result.user;
 
       if (user != null) {
-        // 2. Generate the Unique ID
         String uniqueId = await _generateUniqueId();
 
-        // 3. Prepare the data to be saved in Firestore (The 'user' profile)
+
         Map<String, dynamic> userData = {
           'uid': user.uid,
           'uniqueId': uniqueId,
@@ -75,15 +73,14 @@ class AuthService {
 
         if (documents != null) userData['documents'] = documents;
 
-        // 4. Save the document to the 'users' collection
+
         await _firestore.collection('users').doc(user.uid).set(userData);
 
-        // 5. Setup Push Notifications (FCM Token)
+
         await NotificationService().updateToken();
       }
       return null;
     } on FirebaseAuthException catch (e) {
-      // Logic: Friendly error messages for common issues
       if (e.code == 'email-already-in-use') return 'The account already exists for that email.';
       if (e.code == 'weak-password') return 'The password provided is too weak.';
       return e.message;
@@ -114,29 +111,26 @@ class AuthService {
 
   Future<Map<String, dynamic>> signInWithGoogle() async {
     try {
-      // 1. Trigger the Google Login popup on the phone
       final GoogleSignInAccount? googleUser = await GoogleSignIn(
         serverClientId: '773245302476-93j4rkud9gq2lfi19qabgnso1vsn2kat.apps.googleusercontent.com',
       ).signIn();
       
       if (googleUser == null) return {'error': 'Google sign in cancelled.', 'isNewUser': false};
 
-      // 2. Get the security tokens from Google
+
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
       final AuthCredential credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // 3. Exchange Google tokens for a Firebase login
+
       UserCredential result = await _auth.signInWithCredential(credential);
       User? user = result.user;
 
       if (user != null) {
-        // 4. Check if this Google user already exists in our Firestore database
         final doc = await _firestore.collection('users').doc(user.uid).get();
         if (!doc.exists) {
-          // If NOT, we tell the UI that it's a NEW user and they need to pick a Role
           return {'error': null, 'isNewUser': true, 'user': user};
         }
         await NotificationService().updateToken();

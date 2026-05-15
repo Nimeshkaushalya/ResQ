@@ -22,16 +22,6 @@ class _UserVerificationDetailScreenState extends State<UserVerificationDetailScr
   Future<void> _updateStatus(String status, [String? note]) async {
     setState(() => _isProcessing = true);
     try {
-      if (status == 'rejected') {
-        // As per user request: Rejection = Permanent Deletion from system
-        await FirebaseFirestore.instance.collection('users').doc(widget.userId).delete();
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Account rejected and deleted permanently.')));
-          Navigator.pop(context);
-        }
-        return;
-      }
-
       await FirebaseFirestore.instance.collection('users').doc(widget.userId).update({
         'verificationStatus': status,
         if (note != null) 'verificationNote': note,

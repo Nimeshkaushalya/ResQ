@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import '../../services/auth_service.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import '../login_screen.dart';
+import '../auth_wrapper.dart';
 import 'package:resq_flutter/screens/settings_screen.dart';
 import 'package:lucide_icons/lucide_icons.dart';
 
@@ -23,7 +23,7 @@ class AdminProfileScreen extends StatelessWidget {
     await authService.signOut();
     if (context.mounted) {
       Navigator.of(context).pushAndRemoveUntil(
-        MaterialPageRoute(builder: (context) => const LoginScreen()),
+        MaterialPageRoute(builder: (context) => const AuthWrapper()),
         (route) => false,
       );
     }
