@@ -29,6 +29,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
 
   @override
   Widget build(BuildContext context) {
+    // Listen to Firebase Authentication state changes in real-time
     return StreamBuilder<User?>(
       stream: _authStateStream,
       initialData: _authService.currentUser,
@@ -41,6 +42,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
           return const LoginScreen();
         }
 
+        // Fetch user profile from Firestore database to check their Role securely
         return StreamBuilder<DocumentSnapshot>(
           stream: FirebaseFirestore.instance
               .collection('users')
@@ -55,6 +57,7 @@ class _AuthWrapperState extends State<AuthWrapper> {
               print('DEBUG: AuthWrapper Firestore Data Found. Role: $role');
 
               if (role != null) {
+                // Route user automatically based on their assigned database Role
                 if (role == 'admin') return const AdminMainScaffold();
                 
                 if (verificationStatus == 'pending') {

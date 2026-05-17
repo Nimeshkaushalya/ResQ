@@ -3,8 +3,15 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'user_verification_detail_screen.dart';
 
-class PendingApprovalsScreen extends StatelessWidget {
+class PendingApprovalsScreen extends StatefulWidget {
   const PendingApprovalsScreen({super.key});
+
+  @override
+  State<PendingApprovalsScreen> createState() => _PendingApprovalsScreenState();
+}
+
+class _PendingApprovalsScreenState extends State<PendingApprovalsScreen> {
+  String _sortBy = 'date'; // 'name' or 'date'
 
   @override
   Widget build(BuildContext context) {
@@ -13,6 +20,38 @@ class PendingApprovalsScreen extends StatelessWidget {
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Approvals Management', style: TextStyle(fontWeight: FontWeight.bold)),
+          actions: [
+            PopupMenuButton<String>(
+              icon: const Icon(Icons.sort),
+              onSelected: (value) {
+                setState(() {
+                  _sortBy = value;
+                });
+              },
+              itemBuilder: (context) => [
+                const PopupMenuItem(
+                  value: 'name',
+                  child: Row(
+                    children: [
+                      Icon(Icons.sort_by_alpha, size: 20),
+                      SizedBox(width: 8),
+                      Text('Alphabetical'),
+                    ],
+                  ),
+                ),
+                const PopupMenuItem(
+                  value: 'date',
+                  child: Row(
+                    children: [
+                      Icon(Icons.calendar_today, size: 20),
+                      SizedBox(width: 8),
+                      Text('Newest First'),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ],
           bottom: const TabBar(
             tabs: [
               Tab(text: 'PENDING', icon: Icon(Icons.pending_actions)),
@@ -39,7 +78,6 @@ class PendingApprovalsScreen extends StatelessWidget {
       stream: FirebaseFirestore.instance
           .collection('users')
           .where('verificationStatus', isEqualTo: status)
-          .orderBy('createdAt', descending: true) // Added sorting: newest first
           .snapshots(),
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -50,7 +88,27 @@ class PendingApprovalsScreen extends StatelessWidget {
           return const Center(child: CircularProgressIndicator());
         }
 
-        final users = snapshot.data!.docs;
+        List<QueryDocumentSnapshot> users = snapshot.data!.docs;
+
+        // Apply Sorting
+        users.sort((a, b) {
+          final dataA = a.data() as Map<String, dynamic>;
+          final dataB = b.data() as Map<String, dynamic>;
+
+          if (_sortBy == 'name') {
+            final nameA = (dataA['username'] ?? '').toString().toLowerCase();
+            final nameB = (dataB['username'] ?? '').toString().toLowerCase();
+            return nameA.compareTo(nameB);
+          } else {
+            // Newest first
+            final dateA = dataA['createdAt'] as Timestamp?;
+            final dateB = dataB['createdAt'] as Timestamp?;
+            if (dateA == null && dateB == null) return 0;
+            if (dateA == null) return 1;
+            if (dateB == null) return -1;
+            return dateB.compareTo(dateA);
+          }
+        });
 
         if (users.isEmpty) {
           return Center(

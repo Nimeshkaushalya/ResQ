@@ -134,6 +134,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
     try {
       if (_mediaFile != null) {
+        // Upload media file securely to Cloudinary storage and retrieve the public URL
         _uploadedMediaUrl = _isVideo 
           ? await _cloudinaryService.uploadVideo(File(_mediaFile!.path))
           : await _cloudinaryService.uploadImage(File(_mediaFile!.path));
@@ -141,6 +142,7 @@ class _ReportScreenState extends State<ReportScreen> {
 
       final gemini = Provider.of<GeminiService>(context, listen: false);
       try {
+        // Leverage Gemini LLM to generate an automated structured summary of the incident
         _aiAnalysis = await gemini.analyzeIncident(
             _descriptionController.text.isNotEmpty ? _descriptionController.text : "Emergency: ${widget.initialType}",
             _mediaFile != null && !_isVideo ? _mediaFile : null);
@@ -148,6 +150,7 @@ class _ReportScreenState extends State<ReportScreen> {
         _aiAnalysis = "Could not analyze incident due to network error.";
       }
 
+      // Broadcast emergency report containing coordinates and AI data directly to Firestore
       final response = await _emergencyService.submitEmergencyReport(
         emergencyType: widget.initialType,
         description: _descriptionController.text,

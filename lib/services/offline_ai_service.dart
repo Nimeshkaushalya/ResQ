@@ -33,12 +33,19 @@ List<List<List<List<double>>>>? preprocessImage(Uint8List bytes) {
           224,
           (x) {
             final pixel = resizedImage.getPixel(x, y);
-            // Normalizing color values to a range of -1.0 to 1.0 (Standard for MobileNet models)
+            // Normalization Fix: Try 0 to 255 (Standard Keras image_dataset_from_directory output)
             return [
-              (pixel.r.toInt() - 127.5) / 127.5,
-              (pixel.g.toInt() - 127.5) / 127.5,
-              (pixel.b.toInt() - 127.5) / 127.5
+              pixel.r.toDouble(),
+              pixel.g.toDouble(),
+              pixel.b.toDouble()
             ];
+            
+            // If the above still gives wrong results, comment it out and try [0, 1] scaling below:
+            // return [
+            //   pixel.r.toDouble() / 255.0,
+            //   pixel.g.toDouble() / 255.0,
+            //   pixel.b.toDouble() / 255.0
+            // ];
           },
         ),
       ),

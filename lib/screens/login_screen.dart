@@ -29,11 +29,14 @@ class _LoginScreenState extends State<LoginScreen> {
   void _login() async {
     if (_formKey.currentState!.validate()) {
       setState(() => _isLoading = true);
+      // Authenticate user credentials securely via Firebase Auth
       final error = await _authService.signIn(
         email: _emailController.text.trim(),
         password: _passwordController.text.trim(),
       );
       
+      // IMPORTANT: If error is null (success), we stay in _isLoading = true 
+      // until AuthWrapper swaps the screen. Only reset if there's an error.
       if (error != null) {
         if (mounted) setState(() => _isLoading = false);
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
@@ -43,6 +46,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _loginWithGoogle() async {
     setState(() => _isLoading = true);
+    // Authenticate user via Google OAuth provider and verify user registration
     final result = await _authService.signInWithGoogle();
     final String? error = result['error'];
     final bool isNewUser = result['isNewUser'];
@@ -52,11 +56,13 @@ class _LoginScreenState extends State<LoginScreen> {
       if (mounted) setState(() => _isLoading = false);
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(error)));
     } else if (isNewUser && user != null) {
+      // For new users, we MUST reset loading to show the selection dialog
       if (mounted) setState(() => _isLoading = false);
       if (mounted) _showRoleSelectionDialog(user);
     } else if (error == 'Google sign in cancelled.') {
       if (mounted) setState(() => _isLoading = false);
     }
+    // If successful existing user login, we leave _isLoading = true for smooth transition
   }
 
   void _showForgotPasswordDialog() {

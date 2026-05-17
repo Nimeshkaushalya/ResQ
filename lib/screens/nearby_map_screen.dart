@@ -23,6 +23,7 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
   List<ResponderWithDistance> _responders = [];
   bool _isListExpanded = true;
 
+  // Implement the Haversine formula to compute great-circle distance between coordinates
   double _calculateDistance(double lat1, double lon1, double lat2, double lon2) {
     var p = 0.017453292519943295;
     var c = math.cos;
@@ -60,7 +61,7 @@ class _NearbyMapScreenState extends State<NearbyMapScreen> {
         
         print('DEBUG: Calling PlacesService.fetchNearbyEmergencyPlaces...');
         final places = await PlacesService.fetchNearbyEmergencyPlaces(latLng);
-        
+        // Query Firestore collection to discover active responders within a 5.0km radius
         final responders = await LocationService().getRespondersNearby(
           latLng.latitude, 
           latLng.longitude, 

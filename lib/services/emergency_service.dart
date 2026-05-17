@@ -8,6 +8,7 @@ class EmergencyService {
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
 
+  // Generate a random order ID (e.g., RESQ-938472)
   String _generateOrderId() {
     final random = Random();
     final number = random.nextInt(900000) + 100000; // 6 digit number
@@ -32,6 +33,7 @@ class EmergencyService {
       }
 
 
+      // Fetch user details from Firestore to get name and phone
       DocumentSnapshot userDoc = await _firestore.collection('users').doc(currentUser.uid).get();
       final data = userDoc.data() as Map<String, dynamic>?;
 
@@ -41,6 +43,7 @@ class EmergencyService {
       final String orderId = _generateOrderId();
 
 
+      // Helper: Function to trigger SMS to the first emergency contact
       Future<void> triggerFallbackSMS() async {
         try {
           List<dynamic> contacts = data?['emergencyContacts'] ?? [];
@@ -57,6 +60,7 @@ class EmergencyService {
       }
 
 
+      // Create Document in Firestore and WAIT for confirmation
       try {
         await _firestore.collection('emergencies').add({
           'orderId': orderId,
@@ -86,6 +90,7 @@ class EmergencyService {
           'orderId': orderId
         };
       } catch (e) {
+        // FAIL CASE (e.g. No Internet)
         if (emergencyType == 'SOS') {
           await triggerFallbackSMS(); // Try SMS even if firestore fails
         }
@@ -136,6 +141,7 @@ class EmergencyService {
     required String comment,
   }) async {
     try {
+      // 1. Update the emergency document
       final docRef = _firestore.collection('emergencies').doc(emergencyId);
       await docRef.update({
         'rating': rating,
@@ -144,6 +150,7 @@ class EmergencyService {
       });
 
 
+      // 2. Update the responder's profile average rating
       final emergencyDoc = await docRef.get();
       final responderId = emergencyDoc.data()?['responderId'];
 

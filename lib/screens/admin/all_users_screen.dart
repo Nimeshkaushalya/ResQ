@@ -14,6 +14,7 @@ class _AllUsersScreenState extends State<AllUsersScreen>
   late TabController _tabController;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = '';
+  String _sortBy = 'date'; // 'name' or 'date'
 
   @override
   void initState() {
@@ -72,6 +73,26 @@ class _AllUsersScreenState extends State<AllUsersScreen>
                uniqueId.contains(queryLower);
       }).toList();
     }
+
+    // 3. Sort logic
+    filteredList.sort((a, b) {
+      final dataA = a.data() as Map<String, dynamic>;
+      final dataB = b.data() as Map<String, dynamic>;
+
+      if (_sortBy == 'name') {
+        final nameA = (dataA['username'] ?? '').toString().toLowerCase();
+        final nameB = (dataB['username'] ?? '').toString().toLowerCase();
+        return nameA.compareTo(nameB);
+      } else {
+        // Sort by date (Newest first)
+        final dateA = dataA['createdAt'] as Timestamp?;
+        final dateB = dataB['createdAt'] as Timestamp?;
+        if (dateA == null && dateB == null) return 0;
+        if (dateA == null) return 1;
+        if (dateB == null) return -1;
+        return dateB.compareTo(dateA);
+      }
+    });
 
     if (filteredList.isEmpty) {
       return Center(
@@ -173,6 +194,38 @@ class _AllUsersScreenState extends State<AllUsersScreen>
     return Scaffold(
       appBar: AppBar(
         title: const Text('User Directory'),
+        actions: [
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.sort),
+            onSelected: (value) {
+              setState(() {
+                _sortBy = value;
+              });
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'name',
+                child: Row(
+                  children: [
+                    Icon(Icons.sort_by_alpha, size: 20),
+                    SizedBox(width: 8),
+                    Text('Alphabetical'),
+                  ],
+                ),
+              ),
+              const PopupMenuItem(
+                value: 'date',
+                child: Row(
+                  children: [
+                    Icon(Icons.calendar_today, size: 20),
+                    SizedBox(width: 8),
+                    Text('Newest First'),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
         bottom: TabBar(
           controller: _tabController,
           tabs: const [
